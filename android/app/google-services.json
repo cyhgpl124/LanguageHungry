@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "178952417944",
+    "project_id": "languagehungry",
+    "storage_bucket": "languagehungry.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:178952417944:android:ad6db67865661767f0d6ed",
+        "android_client_info": {
+          "package_name": "com.example.langgry"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCya7nIiY3omUzAkETPG_yCZUPRMmbB99Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

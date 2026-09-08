@@ -1,0 +1,13 @@
+<svg width="360" height="220" viewBox="0 0 360 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="360" height="220" rx="32" fill="#F0F6FF"/>
+  <path d="M75 165C75 128.65 104.45 99 140.8 99H219.2C255.55 99 285 128.65 285 165V177H75V165Z" fill="#BDEFE4"/>
+  <circle cx="180" cy="80" r="42" fill="#FFCF70"/>
+  <path d="M143 78C143 57.57 159.57 41 180 41C200.43 41 217 57.57 217 78V86H143V78Z" fill="#243B64"/>
+  <circle cx="165" cy="83" r="4" fill="#243B64"/>
+  <circle cx="195" cy="83" r="4" fill="#243B64"/>
+  <path d="M168 101C174.63 106.33 185.37 106.33 192 101" stroke="#243B64" stroke-width="5" stroke-linecap="round"/>
+  <path d="M46 62C46 53.72 52.72 47 61 47H106C114.28 47 121 53.72 121 62V82C121 90.28 114.28 97 106 97H82L69 109V97H61C52.72 97 46 90.28 46 82V62Z" fill="white"/>
+  <path d="M64 68H103M64 80H91" stroke="#4F80FF" stroke-width="5" stroke-linecap="round"/>
+  <path d="M239 51C239 42.72 245.72 36 254 36H299C307.28 36 314 42.72 314 51V71C314 79.28 307.28 86 299 86H291V98L278 86H254C245.72 86 239 79.28 239 71V51Z" fill="#243B64"/>
+  <path d="M257 57H296M257 69H284" stroke="#BDEFE4" stroke-width="5" stroke-linecap="round"/>
+</svg>

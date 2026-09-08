@@ -1,125 +1,185 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_ai/firebase_ai.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+import 'core/theme/app_theme.dart';
+import 'features/auth/bloc/auth_bloc.dart';
+import 'features/auth/bloc/auth_event.dart';
+import 'features/auth/bloc/auth_state.dart';
+import 'features/auth/data/auth_repository.dart';
+import 'features/auth/find_account/presentation/find_account_screen/find_account_screen.dart';
+import 'features/auth/login/presentation/login_screen/login_screen.dart';
+import 'features/auth/onboarding/presentation/additional_info_screen.dart';
+import 'features/auth/onboarding/presentation/language_selection_screen.dart';
+import 'features/auth/onboarding/presentation/verify_email_screen.dart';
+import 'features/auth/sign_up/presentation/sign_up_screen/sign_up_screen.dart';
+import 'features/auth/splash/presentation/splash_screen/splash_screen.dart';
+import 'features/auth/terms/presentation/terms_screen/terms_screen.dart';
+import 'features/home/presentation/home_screen/home_screen.dart';
+import 'firebase_options.dart';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  if (kIsWeb) {
+    await FirebaseAppCheck.instance.activate(
+      webProvider: ReCaptchaEnterpriseProvider(
+        '6Ld9nq4tAAAAAKtaAfbvEJdGHFUUb8E1c2DRTbUh',
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+    );
+  } else {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: AndroidProvider.debug,
+      appleProvider: AppleProvider.debug,
     );
   }
+  FirebaseAI.googleAI(appCheck: FirebaseAppCheck.instance);
+  runApp(MyApp(repository: FirebaseAuthRepository()));
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class MyApp extends StatefulWidget {
+  const MyApp({required this.repository, super.key});
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+  final AuthRepository repository;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MyApp> createState() => _MyAppState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _MyAppState extends State<MyApp> {
+  late final AuthBloc _authBloc;
+  late final GoRouter _router;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _authBloc = AuthBloc(widget.repository);
+    _router = GoRouter(
+      initialLocation: '/splash',
+      routes: [
+        GoRoute(
+          path: '/splash',
+          builder: (context, state) => SplashScreen(
+            onFinished: () => _authBloc.add(const AuthStarted()),
+          ),
+        ),
+        GoRoute(
+          path: '/login',
+          builder: (context, state) => LoginScreen(
+            onSignUp: () => context.go('/sign-up'),
+            onFindAccount: () => context.go('/find-account'),
+            onLoginSuccess: (user) {
+              if (user.needsEmailVerification) {
+                _router.go('/verify-email');
+              } else if (user.needsAdditionalInfo) {
+                _router.go('/additional-info');
+              } else if (user.needsLanguageSetup) {
+                _router.go('/language-selection');
+              } else {
+                _router.go('/home');
+              }
+            },
+          ),
+        ),
+        GoRoute(
+          path: '/sign-up',
+          builder: (context, state) => SignUpScreen(
+            onTerms: () => context.push('/terms'),
+          ),
+        ),
+        GoRoute(
+          path: '/additional-info',
+          builder: (context, state) => AdditionalInfoScreen(
+            onTerms: () => context.push('/terms'),
+            onCompleted: () {
+              _authBloc.add(const AuthProfileUpdated());
+              _router.go('/language-selection');
+            },
+          ),
+        ),
+        GoRoute(
+          path: '/verify-email',
+          builder: (context, state) => VerifyEmailScreen(
+            onVerified: () => _authBloc.add(const AuthProfileUpdated()),
+          ),
+        ),
+        GoRoute(
+          path: '/language-selection',
+          builder: (context, state) => LanguageSelectionScreen(
+            onCompleted: () {
+              _authBloc.add(const AuthProfileUpdated());
+              _router.go('/home');
+            },
+          ),
+        ),
+        GoRoute(
+          path: '/find-account',
+          builder: (context, state) => const FindAccountScreen(),
+        ),
+        GoRoute(
+          path: '/terms',
+          builder: (context, state) => const TermsScreen(),
+        ),
+        GoRoute(
+          path: '/home',
+          builder: (context, state) => const HomeScreen(),
+        ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+    return RepositoryProvider.value(
+      value: widget.repository,
+      child: BlocProvider.value(
+        value: _authBloc,
+        child: BlocListener<AuthBloc, AuthState>(
+          listener: (context, state) {
+            final path = _router.routeInformationProvider.value.uri.path;
+            if (state is AuthAuthenticated) {
+              if (state.user.needsEmailVerification &&
+                  path != '/verify-email') {
+                _router.go('/verify-email');
+              } else if (state.user.needsAdditionalInfo &&
+                  path != '/additional-info') {
+                _router.go('/additional-info');
+              } else if (state.user.needsLanguageSetup &&
+                  path != '/language-selection') {
+                _router.go('/language-selection');
+              } else if (!state.user.needsAdditionalInfo &&
+                  !state.user.needsLanguageSetup &&
+                  path != '/home') {
+                _router.go('/home');
+              }
+            } else if (state is AuthFailure) {
+              if (path == '/splash') {
+                _router.go('/login');
+              }
+            } else if (state is AuthUnauthenticated && path != '/login') {
+              _router.go('/login');
+            }
+          },
+          child: MaterialApp.router(
+            title: 'LANGGRY',
+            theme: AppTheme.light,
+            routerConfig: _router,
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  @override
+  void dispose() {
+    _router.dispose();
+    _authBloc.close();
+    super.dispose();
   }
 }
