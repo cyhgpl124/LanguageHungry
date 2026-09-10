@@ -25,7 +25,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.navy,
+      backgroundColor: AppTheme.surface,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -39,8 +39,8 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 20),
             const Text(
-              '말하고, 듣고, 더 가까워지는 언어 습관',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+              '언어에 고픈 당신, 랭그리가 함께합니다.',
+              style: TextStyle(color: Colors.black, fontSize: 13),
             ),
           ],
         ),

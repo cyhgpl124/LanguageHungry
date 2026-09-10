@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/localization/language_display.dart';
 import '../../data/auth_repository.dart';
 import '../../presentation/widgets/auth_scaffold.dart';
 
 class LanguageSelectionScreen extends StatefulWidget {
-  const LanguageSelectionScreen({required this.onCompleted, super.key});
+  const LanguageSelectionScreen({
+    required this.onCompleted,
+    super.key,
+  });
 
   final VoidCallback onCompleted;
 
@@ -15,19 +19,30 @@ class LanguageSelectionScreen extends StatefulWidget {
 }
 
 class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
-  static const _languages = [
-    '한국어',
-    '영어',
-    '일본어',
-    '중국어',
-    '스페인어',
-    '프랑스어',
-    '독일어',
-  ];
-
   final _nativeLanguages = <String>{};
   final _learningLanguages = <String>{};
   bool _saving = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingLanguages();
+  }
+
+  Future<void> _loadExistingLanguages() async {
+    try {
+      final data = await context.read<AuthRepository>().loadHomeData();
+      if (!mounted) return;
+      setState(() {
+        _nativeLanguages.addAll(data.nativeLanguages);
+        _learningLanguages.addAll(data.learningLanguages);
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   Future<void> _submit() async {
     if (_nativeLanguages.isEmpty || _learningLanguages.isEmpty) {
@@ -48,6 +63,8 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
       await context.read<AuthRepository>().saveLanguagePreferences(
             nativeLanguages: _nativeLanguages.toList(),
             learningLanguages: _learningLanguages.toList(),
+            activeNativeLanguage: _nativeLanguages.first,
+            activeLearningLanguage: _learningLanguages.first,
           );
       widget.onCompleted();
     } catch (error) {
@@ -63,6 +80,11 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     return AuthScaffold(
       title: '언어를 선택해 주세요',
       subtitle: '나에게 맞는 학습 목표를 설정해 보세요.',
@@ -74,14 +96,15 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _languages.map((language) {
+            children: LanguageDisplay.all.map((language) {
               return FilterChip(
-                label: Text(language),
-                selected: _nativeLanguages.contains(language),
+                avatar: Text(language.flag),
+                label: Text(language.nativeName),
+                selected: _nativeLanguages.contains(language.storageName),
                 onSelected: (selected) => setState(() {
                   selected
-                      ? _nativeLanguages.add(language)
-                      : _nativeLanguages.remove(language);
+                      ? _nativeLanguages.add(language.storageName)
+                      : _nativeLanguages.remove(language.storageName);
                 }),
               );
             }).toList(),
@@ -92,14 +115,15 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _languages.map((language) {
+            children: LanguageDisplay.all.map((language) {
               return FilterChip(
-                label: Text(language),
-                selected: _learningLanguages.contains(language),
+                avatar: Text(language.flag),
+                label: Text(language.nativeName),
+                selected: _learningLanguages.contains(language.storageName),
                 onSelected: (selected) => setState(() {
                   selected
-                      ? _learningLanguages.add(language)
-                      : _learningLanguages.remove(language);
+                      ? _learningLanguages.add(language.storageName)
+                      : _learningLanguages.remove(language.storageName);
                 }),
               );
             }).toList(),

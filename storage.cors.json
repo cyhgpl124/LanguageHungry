@@ -1,0 +1,27 @@
+[
+  {
+    "origin": [
+      "http://localhost:1235",
+      "http://localhost:5000",
+      "http://localhost:5173",
+      "http://127.0.0.1:1235",
+      "http://127.0.0.1:5000",
+      "http://127.0.0.1:5173"
+    ],
+    "method": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ],
+    "responseHeader": [
+      "Content-Type",
+      "Content-Length",
+      "Cache-Control",
+      "Content-Disposition",
+      "ETag",
+      "x-goog-generation",
+      "x-goog-meta-ownerUid"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]
