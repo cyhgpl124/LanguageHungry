@@ -10,30 +10,36 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/theme/app_theme.dart';
-import 'features/auth/bloc/auth_bloc.dart';
-import 'features/auth/bloc/auth_event.dart';
-import 'features/auth/bloc/auth_state.dart';
-import 'features/auth/data/auth_repository.dart';
-import 'features/auth/find_account/presentation/find_account_screen/find_account_screen.dart';
-import 'features/auth/login/presentation/login_screen/login_screen.dart';
-import 'features/auth/onboarding/presentation/additional_info_screen.dart';
-import 'features/auth/onboarding/presentation/language_selection_screen.dart';
-import 'features/auth/onboarding/presentation/verify_email_screen.dart';
-import 'features/auth/sign_up/presentation/sign_up_screen/sign_up_screen.dart';
-import 'features/auth/splash/presentation/splash_screen/splash_screen.dart';
-import 'features/auth/terms/presentation/terms_screen/terms_screen.dart';
-import 'features/chat/presentation/chat_screens.dart';
-import 'features/home/presentation/home_screen/home_screen.dart';
-import 'features/knowledge/data/knowledge_database.dart';
-import 'features/knowledge/data/cloud_first_knowledge_store.dart';
-import 'features/knowledge/data/mobile_cloud_handoff_service.dart';
-import 'features/knowledge/presentation/file_parsing_screen.dart';
-import 'features/knowledge/presentation/memo_workspace_screen.dart';
-import 'features/knowledge/presentation/workspace_shell.dart';
-import 'features/market/presentation/market_screen.dart';
-import 'features/profile/presentation/my_page.dart';
-import 'features/profile/presentation/edit_profile_screen.dart';
+import 'features/auth/session/blocs/auth_bloc.dart';
+import 'features/auth/session/blocs/auth_event.dart';
+import 'features/auth/session/blocs/auth_state.dart';
+import 'features/auth/session/services/auth_repository.dart';
+import 'features/auth/find_account/pages/find_account_screen.dart';
+import 'features/auth/login/pages/login_screen.dart';
+import 'features/auth/onboarding/pages/additional_info_screen.dart';
+import 'features/auth/onboarding/pages/language_selection_screen.dart';
+import 'features/auth/onboarding/pages/verify_email_screen.dart';
+import 'features/auth/sign_up/pages/sign_up_screen.dart';
+import 'features/auth/splash/pages/splash_screen.dart';
+import 'features/auth/terms/pages/terms_screen.dart';
+import 'features/chat/workspace/pages/chat_workspace_screen.dart';
+import 'features/home/dashboard/pages/home_screen.dart';
+import 'features/knowledge/services/knowledge_database.dart';
+import 'features/knowledge/services/cloud_first_knowledge_store.dart';
+import 'features/knowledge/services/mobile_cloud_handoff_service.dart';
+import 'features/knowledge/files/pages/file_parsing_screen.dart';
+import 'features/knowledge/memos/pages/memo_workspace_screen.dart';
+import 'features/knowledge/workspace/pages/workspace_shell.dart';
+import 'features/market/store/pages/market_screen.dart';
+import 'features/profile/my_profile/pages/my_page.dart';
+import 'features/profile/edit_profile/pages/edit_profile_screen.dart';
 import 'firebase_options.dart';
+
+NoTransitionPage<T> _shellPage<T>(
+  GoRouterState state,
+  Widget child,
+) =>
+    NoTransitionPage<T>(key: state.pageKey, child: child);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +49,7 @@ Future<void> main() async {
   if (kIsWeb) {
     await FirebaseAppCheck.instance.activate(
       webProvider: ReCaptchaEnterpriseProvider(
-        '6Ld9nq4tAAAAAKtaAfbvEJdGHFUUb8E1c2DRTbUh',
+        '6Lf9r7MtAAAAAGZZuCYCrJTJTtq-u5ZN19VpSNsE',
       ),
     );
   } else {
@@ -210,45 +216,60 @@ class _MyAppState extends State<MyApp> {
           routes: [
             GoRoute(
               path: '/home',
-              builder: (context, state) => HomeScreen(
-                onLanguageSettings: () => _router.go('/language-selection'),
-                onLanguageChanged: _changeActiveLanguage,
-                onStartChat: () => _router.go('/chat?start=1'),
+              pageBuilder: (context, state) => _shellPage<void>(
+                state,
+                HomeScreen(
+                  onLanguageSettings: () => _router.go('/language-selection'),
+                  onLanguageChanged: _changeActiveLanguage,
+                  onStartChat: () => _router.go('/chat?start=1'),
+                ),
               ),
             ),
             GoRoute(
               path: '/chat',
-              builder: (context, state) => ChatWorkspaceScreen(
-                store: widget.knowledgeStore,
-                autoStart: state.uri.queryParameters['start'] == '1',
+              pageBuilder: (context, state) => _shellPage<void>(
+                state,
+                ChatWorkspaceScreen(
+                  store: widget.knowledgeStore,
+                  autoStart: state.uri.queryParameters['start'] == '1',
+                ),
               ),
             ),
             GoRoute(
               path: '/file-import',
-              builder: (context, state) =>
-                  FileParsingScreen(store: widget.knowledgeStore),
+              pageBuilder: (context, state) => _shellPage<void>(
+                state,
+                FileParsingScreen(store: widget.knowledgeStore),
+              ),
             ),
             GoRoute(
               path: '/knowledge-list',
-              builder: (context, state) =>
-                  MemoWorkspaceScreen(store: widget.knowledgeStore),
+              pageBuilder: (context, state) => _shellPage<void>(
+                state,
+                MemoWorkspaceScreen(store: widget.knowledgeStore),
+              ),
             ),
             GoRoute(
               path: '/market',
-              builder: (context, state) => const MarketScreen(),
+              pageBuilder: (context, state) =>
+                  _shellPage<void>(state, const MarketScreen()),
             ),
             GoRoute(
               path: '/profile',
-              builder: (context, state) => MyPage(
-                onLanguageSettings: () => _router.go('/language-selection'),
-                onEditProfile: () async {
-                  await _router.push<bool>('/profile/edit');
-                },
+              pageBuilder: (context, state) => _shellPage<void>(
+                state,
+                MyPage(
+                  onLanguageSettings: () => _router.go('/language-selection'),
+                  onEditProfile: () async {
+                    await _router.push<bool>('/profile/edit');
+                  },
+                ),
               ),
             ),
             GoRoute(
               path: '/profile/edit',
-              builder: (context, state) => const EditProfileScreen(),
+              pageBuilder: (context, state) =>
+                  _shellPage<void>(state, const EditProfileScreen()),
             ),
           ],
         ),

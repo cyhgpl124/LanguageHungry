@@ -45,7 +45,7 @@ class DefaultFirebaseOptions {
     appId: '1:178952417944:web:0d1f58870c3232f1f0d6ed',
     messagingSenderId: '178952417944',
     projectId: 'languagehungry',
-    authDomain: 'languagehungry.firebaseapp.com',
+    authDomain: 'languagehungry.web.app',
     storageBucket: 'languagehungry.firebasestorage.app',
     measurementId: 'G-ZGW8SLVE56',
   );

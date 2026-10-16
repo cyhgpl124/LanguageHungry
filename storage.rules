@@ -11,6 +11,46 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');
     }
 
+    match /users/{userId}/ai-profiles/{imageId} {
+      allow read: if request.auth != null
+                  && request.auth.uid == userId;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    match /users/{userId}/group-profiles/{imageId} {
+      allow read: if request.auth != null
+                  && request.auth.uid == userId;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    match /users/{userId}/chatRooms/{roomId}/images/{imageId} {
+      allow read: if request.auth != null
+                  && request.auth.uid == userId;
+      allow delete: if request.auth != null
+                    && request.auth.uid == userId;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    match /users/{userId}/chatGallery/{imageId} {
+      allow read: if request.auth != null
+                  && request.auth.uid == userId;
+      allow delete: if request.auth != null
+                    && request.auth.uid == userId;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
     match /users/{userId}/backups/{fileName} {
       allow read: if request.auth != null
                   && request.auth.uid == userId;
