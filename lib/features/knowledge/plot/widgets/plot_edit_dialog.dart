@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 
 import 'package:langgry/features/knowledge/models/knowledge_node.dart';
 
@@ -28,7 +29,7 @@ class _PlotEditDialogState extends State<PlotEditDialog> {
     final content = _contentController.text.trim();
     if (title.isEmpty || content.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('제목과 내용을 입력해 주세요.')),
+        const SnackBar(content: AppText('제목과 내용을 입력해 주세요.')),
       );
       return;
     }
@@ -45,7 +46,7 @@ class _PlotEditDialogState extends State<PlotEditDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('플롯 수정'),
+      title: const AppText('플롯 수정'),
       content: SizedBox(
         width: 520,
         child: SingleChildScrollView(
@@ -54,8 +55,8 @@ class _PlotEditDialogState extends State<PlotEditDialog> {
             children: [
               TextField(
                 controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: '제목',
+                decoration: InputDecoration(
+                  labelText: AppText.localize(context, '제목'),
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -64,8 +65,8 @@ class _PlotEditDialogState extends State<PlotEditDialog> {
                 controller: _contentController,
                 minLines: 6,
                 maxLines: 14,
-                decoration: const InputDecoration(
-                  labelText: '내용',
+                decoration: InputDecoration(
+                  labelText: AppText.localize(context, '내용'),
                   alignLabelWithHint: true,
                   border: OutlineInputBorder(),
                 ),
@@ -77,11 +78,11 @@ class _PlotEditDialogState extends State<PlotEditDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('취소'),
+          child: const AppText('취소'),
         ),
         FilledButton(
           onPressed: _save,
-          child: const Text('저장'),
+          child: const AppText('저장'),
         ),
       ],
     );

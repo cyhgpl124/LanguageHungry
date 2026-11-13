@@ -42,12 +42,17 @@ class CloudFirstKnowledgeStore implements KnowledgeStore {
     if (user == null) {
       throw StateError('로그인된 사용자가 없습니다. 다시 로그인해 주세요.');
     }
-    await _collection('nodes').doc(node.id).set(
-          nodeToMap(node),
-          SetOptions(merge: true),
-        );
-    await _firestore.waitForPendingWrites();
+    await localStore.upsertNode(node);
     _changes.add(null);
+
+    try {
+      await _collection('nodes').doc(node.id).set(
+            nodeToMap(node),
+            SetOptions(merge: true),
+          );
+      _changes.add(null);
+    } catch (_) {}
+
     return node;
   }
 
@@ -58,12 +63,17 @@ class CloudFirstKnowledgeStore implements KnowledgeStore {
       throw StateError('로그인된 사용자가 없습니다. 다시 로그인해 주세요.');
     }
 
-    await _collection('edges').doc(edge.id).set(
-          edgeToMap(edge),
-          SetOptions(merge: true),
-        );
-    await _firestore.waitForPendingWrites();
+    await localStore.upsertEdge(edge);
     _changes.add(null);
+
+    try {
+      await _collection('edges').doc(edge.id).set(
+            edgeToMap(edge),
+            SetOptions(merge: true),
+          );
+      _changes.add(null);
+    } catch (_) {}
+
     return edge;
   }
 
@@ -75,6 +85,9 @@ class CloudFirstKnowledgeStore implements KnowledgeStore {
 
   @override
   Future<KnowledgeNode?> findNode(String id) async {
+    final local = await localStore.findNode(id);
+    if (local != null) return local;
+
     final document = await _collection('nodes').doc(id).get();
     return document.exists && document.data() != null
         ? nodeFromMap(document.data()!)
@@ -83,11 +96,26 @@ class CloudFirstKnowledgeStore implements KnowledgeStore {
 
   @override
   Future<List<KnowledgeNode>> listNodes({String? query, String? tag}) async {
-    final snapshot = await _collection('nodes').get();
-    final nodes = snapshot.docs.map((doc) => nodeFromMap(doc.data())).toList();
+    final nodesById = <String, KnowledgeNode>{};
+
+    try {
+      for (final node in await localStore.listNodes(query: query, tag: tag)) {
+        nodesById[node.id] = node;
+      }
+    } catch (_) {}
+
+    try {
+      final snapshot = await _collection('nodes').get();
+      for (final doc in snapshot.docs) {
+        final node = nodeFromMap(doc.data());
+        nodesById[node.id] = node;
+        await localStore.upsertNode(node);
+      }
+    } catch (_) {}
+
     final normalizedQuery = query?.trim().toLowerCase() ?? '';
     final normalizedTag = tag?.trim() ?? '';
-    return nodes.where((node) {
+    return nodesById.values.where((node) {
       final matchesQuery = normalizedQuery.isEmpty ||
           node.title.toLowerCase().contains(normalizedQuery) ||
           node.content.toLowerCase().contains(normalizedQuery);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 
 import '../../../../core/theme/app_theme.dart';
 
@@ -28,7 +29,7 @@ class BrandMark extends StatelessWidget {
         ),
         if (!compact) ...[
           const SizedBox(width: 12),
-          const Text(
+          const AppText(
             'LANGGRY',
             style: TextStyle(
               color: AppTheme.navy,

@@ -1,15 +1,18 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:langgry/features/knowledge/services/knowledge_database.dart';
 import 'package:langgry/features/knowledge/models/knowledge_node.dart';
 import 'package:langgry/features/knowledge/list/blocs/knowledge_bloc.dart';
+import 'package:langgry/features/knowledge/memos/services/memo_mode_assistant.dart';
 
 class DynamicListScreen extends StatelessWidget {
   const DynamicListScreen({
@@ -122,7 +125,7 @@ class _DynamicListViewState extends State<_DynamicListView> {
     _search();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$imported개의 행을 추가했습니다.')),
+        SnackBar(content: AppText('$imported개의 행을 추가했습니다.')),
       );
     }
   }
@@ -153,7 +156,7 @@ class _DynamicListViewState extends State<_DynamicListView> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('파일 가져오기 실패: $error')),
+          SnackBar(content: AppText('파일 가져오기 실패: $error')),
         );
       }
     }
@@ -206,7 +209,9 @@ class _DynamicListViewState extends State<_DynamicListView> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(editing == null ? '리스트를 저장했습니다.' : '리스트를 수정했습니다.'),
+          content: AppText(
+            editing == null ? '리스트를 저장했습니다.' : '리스트를 수정했습니다.',
+          ),
         ),
       );
     }
@@ -273,7 +278,7 @@ class _DynamicListViewState extends State<_DynamicListView> {
                   width: dialogWidth,
                   height: tableHeight,
                   child: dataRows.isEmpty
-                      ? const Center(child: Text('표시할 내용이 없습니다.'))
+                      ? const Center(child: AppText('표시할 내용이 없습니다.'))
                       : DecoratedBox(
                           decoration: BoxDecoration(
                             color: Theme.of(context)
@@ -343,7 +348,7 @@ class _DynamicListViewState extends State<_DynamicListView> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('닫기'),
+                    child: const AppText('닫기'),
                   ),
                 ),
               ],
@@ -362,7 +367,7 @@ class _DynamicListViewState extends State<_DynamicListView> {
           children: [
             ListTile(
               leading: const Icon(Icons.edit_outlined),
-              title: const Text('수정'),
+              title: const AppText('수정'),
               onTap: () => Navigator.pop(context, _ListAction.edit),
             ),
             ListTile(
@@ -370,7 +375,7 @@ class _DynamicListViewState extends State<_DynamicListView> {
                 Icons.delete_outline,
                 color: Theme.of(context).colorScheme.error,
               ),
-              title: Text(
+              title: AppText(
                 '삭제',
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
@@ -387,16 +392,16 @@ class _DynamicListViewState extends State<_DynamicListView> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('리스트 삭제'),
-          content: Text('"${node.title}" 리스트를 삭제할까요?'),
+          title: const AppText('리스트 삭제'),
+          content: AppText('"${node.title}" 리스트를 삭제할까요?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('취소'),
+              child: const AppText('취소'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('삭제'),
+              child: const AppText('삭제'),
             ),
           ],
         ),
@@ -411,7 +416,7 @@ class _DynamicListViewState extends State<_DynamicListView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: widget.embedded ? null : AppBar(title: const Text('리스트 모드')),
+      appBar: widget.embedded ? null : AppBar(title: const AppText('리스트 모드')),
       body: CustomScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         slivers: [
@@ -422,8 +427,8 @@ class _DynamicListViewState extends State<_DynamicListView> {
                 builder: (context, constraints) {
                   final searchField = TextField(
                     controller: _queryController,
-                    decoration: const InputDecoration(
-                      labelText: '전체 검색',
+                    decoration: InputDecoration(
+                      labelText: AppText.localize(context, '전체 검색'),
                       prefixIcon: Icon(Icons.search),
                       border: OutlineInputBorder(),
                       isDense: true,
@@ -434,28 +439,28 @@ class _DynamicListViewState extends State<_DynamicListView> {
                     children: [
                       IconButton.filledTonal(
                         onPressed: _search,
-                        tooltip: '검색',
+                        tooltip: AppText.localize(context, '검색'),
                         icon: const Icon(Icons.keyboard_return_rounded),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Tooltip(
-                          message: '리스트 추가',
+                          message: AppText.localize(context, '리스트 추가'),
                           child: FilledButton.tonalIcon(
                             onPressed: _showAddListDialog,
                             icon: const Icon(Icons.add_rounded),
-                            label: const Text('추가'),
+                            label: const AppText('추가'),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Tooltip(
-                          message: '엑셀/CSV 업로드',
+                          message: AppText.localize(context, '엑셀/CSV 업로드'),
                           child: FilledButton.tonalIcon(
                             onPressed: _importFile,
                             icon: const Icon(Icons.upload_file_rounded),
-                            label: const Text('업로드'),
+                            label: const AppText('업로드'),
                           ),
                         ),
                       ),
@@ -491,12 +496,15 @@ class _DynamicListViewState extends State<_DynamicListView> {
                   child: Center(child: CircularProgressIndicator()),
                 );
               }
-              final rows =
-                  state.nodes.where((node) => node.mode == 'list').toList();
+              final rows = state.nodes
+                  .where((node) =>
+                      node.mode == 'list' ||
+                      node.metadata['documentKind'] == 'list')
+                  .toList();
               if (rows.isEmpty) {
                 return const SliverFillRemaining(
                   child: Center(
-                    child: Text(
+                    child: AppText(
                       '리스트 데이터가 없습니다.\n리스트 추가 또는 CSV/Excel 업로드를 사용하세요.',
                       textAlign: TextAlign.center,
                     ),
@@ -569,6 +577,66 @@ class _ListEntryInput {
       };
 }
 
+Future<void> showQuickListEntryDialog({
+  required BuildContext context,
+  required KnowledgeStore store,
+}) async {
+  const defaultDelimiter = '쉼표 (,)';
+  final input = await showDialog<_ListEntryInput>(
+    context: context,
+    builder: (_) => const _AddListDialog(
+      initialTitle: '',
+      initialProperty: '',
+      initialContent: '',
+      initialDelimiter: defaultDelimiter,
+      initialCustomDelimiter: '',
+      showAssistant: true,
+    ),
+  );
+  if (input == null || !context.mounted) return;
+  final now = DateTime.now();
+  try {
+    await store.insertNode(
+      KnowledgeNode(
+        id: const Uuid().v4(),
+        type: 'knowledge',
+        title: input.title,
+        content: input.content,
+        createdAt: now,
+        updatedAt: now,
+        metadata: {
+          'mode': 'list',
+          'display': '리스트',
+          'listProperty': input.property,
+          'listValue': input.content,
+          'listDelimiter': input.delimiterValue,
+        },
+      ),
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: AppText('리스트를 저장했습니다.')),
+      );
+    }
+  } on FirebaseException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppText(
+            'Firebase 저장 실패 (${error.code}): ${error.message ?? '권한 또는 App Check 설정을 확인해 주세요.'}',
+          ),
+        ),
+      );
+    }
+  } catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: AppText('리스트 저장 실패: $error')),
+      );
+    }
+  }
+}
+
 enum _ListAction { edit, delete }
 
 class _AddListDialog extends StatefulWidget {
@@ -578,6 +646,7 @@ class _AddListDialog extends StatefulWidget {
     required this.initialContent,
     required this.initialDelimiter,
     required this.initialCustomDelimiter,
+    this.showAssistant = false,
   });
 
   final String initialTitle;
@@ -585,6 +654,7 @@ class _AddListDialog extends StatefulWidget {
   final String initialContent;
   final String initialDelimiter;
   final String initialCustomDelimiter;
+  final bool showAssistant;
 
   @override
   State<_AddListDialog> createState() => _AddListDialogState();
@@ -616,7 +686,7 @@ class _AddListDialogState extends State<_AddListDialog> {
     final content = _contentController.text.trim();
     if (title.isEmpty || property.isEmpty || content.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('제목, 열의 속성, 내용을 모두 입력해 주세요.')),
+        const SnackBar(content: AppText('제목, 열의 속성, 내용을 모두 입력해 주세요.')),
       );
       return;
     }
@@ -635,7 +705,7 @@ class _AddListDialogState extends State<_AddListDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('리스트 추가'),
+      title: const AppText('리스트 추가'),
       content: SizedBox(
         width: 480,
         child: SingleChildScrollView(
@@ -644,45 +714,84 @@ class _AddListDialogState extends State<_AddListDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextField(
+                key: const ValueKey('quick-list-title'),
                 controller: _titleController,
                 autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: '제목',
+                decoration: InputDecoration(
+                  labelText: AppText.localize(context, '제목'),
                   border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
+                key: const ValueKey('quick-list-properties'),
                 controller: _propertyController,
-                decoration: const InputDecoration(
-                  labelText: '열의 속성',
-                  hintText: '예: 단어, 날짜, 상태',
+                decoration: InputDecoration(
+                  labelText: AppText.localize(context, '열의 속성'),
+                  hintText: AppText.localize(context, '예: 단어, 날짜, 상태'),
                   border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
+                key: const ValueKey('quick-list-content'),
                 controller: _contentController,
                 minLines: 4,
                 maxLines: 8,
-                decoration: const InputDecoration(
-                  labelText: '내용',
+                decoration: InputDecoration(
+                  labelText: AppText.localize(context, '내용'),
                   border: OutlineInputBorder(),
                 ),
               ),
+              if (widget.showAssistant) ...[
+                const SizedBox(height: 8),
+                MemoModeAssistantPanel(
+                  mode: 'list',
+                  onTextGenerated: (response) {
+                    final rows = response
+                        .split(RegExp(r'\r?\n'))
+                        .map((line) => line.trim())
+                        .where((line) => line.isNotEmpty)
+                        .toList();
+                    if (rows.isEmpty) return;
+                    final delimiter = _delimiter == '사용자 지정'
+                        ? (_customDelimiterController.text.isEmpty
+                            ? ','
+                            : _customDelimiterController.text[0])
+                        : switch (_delimiter) {
+                            '세미콜론 (;)' => ';',
+                            '콜론 (:)' => ':',
+                            '공백' => ' ',
+                            _ => ',',
+                          };
+                    setState(() {
+                      _propertyController.text =
+                          rows.first.replaceAll('\t', delimiter);
+                      _contentController.text = rows
+                          .skip(1)
+                          .map((row) => row.replaceAll('\t', delimiter))
+                          .join('\n');
+                      if (_titleController.text.trim().isEmpty) {
+                        _titleController.text = 'AI 생성 리스트';
+                      }
+                    });
+                  },
+                ),
+              ],
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _delimiter,
-                decoration: const InputDecoration(
-                  labelText: '구분자',
+                decoration: InputDecoration(
+                  labelText: AppText.localize(context, '구분자'),
                   border: OutlineInputBorder(),
                 ),
                 items: const [
-                  DropdownMenuItem(value: '쉼표 (,)', child: Text('쉼표 (,)')),
-                  DropdownMenuItem(value: '세미콜론 (;)', child: Text('세미콜론 (;)')),
-                  DropdownMenuItem(value: '콜론 (:)', child: Text('콜론 (:)')),
-                  DropdownMenuItem(value: '공백', child: Text('공백')),
-                  DropdownMenuItem(value: '사용자 지정', child: Text('사용자 지정')),
+                  DropdownMenuItem(value: '쉼표 (,)', child: AppText('쉼표 (,)')),
+                  DropdownMenuItem(
+                      value: '세미콜론 (;)', child: AppText('세미콜론 (;)')),
+                  DropdownMenuItem(value: '콜론 (:)', child: AppText('콜론 (:)')),
+                  DropdownMenuItem(value: '공백', child: AppText('공백')),
+                  DropdownMenuItem(value: '사용자 지정', child: AppText('사용자 지정')),
                 ],
                 onChanged: (value) {
                   if (value != null) setState(() => _delimiter = value);
@@ -693,15 +802,15 @@ class _AddListDialogState extends State<_AddListDialog> {
                   padding: const EdgeInsets.only(top: 8),
                   child: Row(
                     children: [
-                      const Text('기호'),
+                      const AppText('기호'),
                       const SizedBox(width: 12),
                       SizedBox(
                         width: 100,
                         child: TextField(
                           controller: _customDelimiterController,
                           maxLength: 1,
-                          decoration: const InputDecoration(
-                            labelText: '사용자 지정',
+                          decoration: InputDecoration(
+                            labelText: AppText.localize(context, '사용자 지정'),
                             counterText: '',
                             border: OutlineInputBorder(),
                           ),
@@ -717,11 +826,11 @@ class _AddListDialogState extends State<_AddListDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('취소'),
+          child: const AppText('취소'),
         ),
         FilledButton(
           onPressed: _save,
-          child: const Text('저장'),
+          child: const AppText('저장'),
         ),
       ],
     );

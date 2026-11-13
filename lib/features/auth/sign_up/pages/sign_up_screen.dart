@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -58,7 +59,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   InputDecoration _decoration(String label, {String? hint, Widget? suffix}) =>
-      InputDecoration(labelText: label, hintText: hint, suffixIcon: suffix);
+      InputDecoration(
+        labelText: AppText.localize(context, label),
+        hintText: hint == null ? null : AppText.localize(context, hint),
+        suffixIcon: suffix,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +75,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         listener: (context, state) {
           if (state is SignUpFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
+              SnackBar(content: AppText(state.message)),
             );
           }
         },
@@ -112,7 +117,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Center(child: Text('프로필 사진을 눌러 업로드하세요')),
+                const Center(child: AppText('프로필 사진을 눌러 업로드하세요')),
                 const SizedBox(height: 20),
                 Card(
                   child: Padding(
@@ -125,9 +130,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               _decoration('아이디', hint: '영문, 숫자, 밑줄(_)만 사용'),
                           validator: (value) {
                             final text = value?.trim() ?? '';
-                            if (text.length < 3) return '아이디는 3자 이상 입력해 주세요.';
+                            if (text.length < 3) {
+                              return AppText.localize(
+                                context,
+                                '아이디는 3자 이상 입력해 주세요.',
+                              );
+                            }
                             if (!RegExp(r'^[A-Za-z0-9_]+$').hasMatch(text)) {
-                              return '영문, 숫자, 밑줄(_)만 사용해 주세요.';
+                              return AppText.localize(
+                                context,
+                                '영문, 숫자, 밑줄(_)만 사용해 주세요.',
+                              );
                             }
                             return null;
                           },
@@ -138,7 +151,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           decoration: _decoration('닉네임'),
                           validator: (value) =>
                               value == null || value.trim().isEmpty
-                                  ? '닉네임을 입력해 주세요.'
+                                  ? AppText.localize(context, '닉네임을 입력해 주세요.')
                                   : null,
                         ),
                         const SizedBox(height: 12),
@@ -149,7 +162,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           validator: (value) =>
                               value != null && value.contains('@')
                                   ? null
-                                  : '이메일을 입력해 주세요.',
+                                  : AppText.localize(context, '이메일을 입력해 주세요.'),
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -170,7 +183,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           validator: (value) =>
                               value != null && value.length >= 6
                                   ? null
-                                  : '6자 이상 입력해 주세요.',
+                                  : AppText.localize(context, '6자 이상 입력해 주세요.'),
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -190,7 +203,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                           validator: (value) => value == _password.text
                               ? null
-                              : '비밀번호가 일치하지 않습니다.',
+                              : AppText.localize(
+                                  context,
+                                  '비밀번호가 일치하지 않습니다.',
+                                ),
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -211,10 +227,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   controlAffinity: ListTileControlAffinity.leading,
                   title: Wrap(
                     children: [
-                      const Text('필수 약관에 동의합니다. '),
+                      const AppText('필수 약관에 동의합니다. '),
                       GestureDetector(
                         onTap: widget.onTerms,
-                        child: const Text(
+                        child: const AppText(
                           '약관 보기',
                           style: TextStyle(
                             decoration: TextDecoration.underline,
@@ -233,7 +249,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             if (!_agree) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('필수 약관에 동의해 주세요.'),
+                                  content: AppText('필수 약관에 동의해 주세요.'),
                                 ),
                               );
                               return;
@@ -255,7 +271,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     icon: const Icon(Icons.person_add_alt_1_rounded),
                     label: state is SignUpLoading
                         ? const CircularProgressIndicator()
-                        : const Text('가입하기'),
+                        : const AppText('가입하기'),
                   ),
                 ),
               ],

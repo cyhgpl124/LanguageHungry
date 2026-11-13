@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
+import 'package:langgry/core/permissions/permission_gate.dart';
+import 'package:langgry/core/permissions/permission_policy.dart';
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:langgry/features/knowledge/services/knowledge_database.dart';
 import 'package:langgry/features/knowledge/services/memo_ai_service.dart';
 import 'package:langgry/features/knowledge/models/knowledge_node.dart';
+import 'package:langgry/features/knowledge/memos/services/memo_mode_assistant.dart';
 
 class PlotModeScreen extends StatefulWidget {
   const PlotModeScreen({required this.store, super.key});
@@ -30,6 +34,10 @@ class _PlotModeScreenState extends State<PlotModeScreen> {
   }
 
   Future<void> _generate() async {
+    if (!await requireFeatureAccess(context, PermissionFeatures.aiTools)) {
+      return;
+    }
+    if (!mounted) return;
     setState(() => _loading = true);
     try {
       final model =
@@ -53,10 +61,14 @@ class _PlotModeScreenState extends State<PlotModeScreen> {
     final result = _result.text.trim();
     if (result.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('저장할 플롯 결과를 먼저 생성하거나 입력해 주세요.')),
+        const SnackBar(content: AppText('저장할 플롯 결과를 먼저 생성하거나 입력해 주세요.')),
       );
       return;
     }
+    if (!await requireFeatureAccess(context, PermissionFeatures.aiTools)) {
+      return;
+    }
+    if (!mounted) return;
     try {
       final now = DateTime.now();
       final lines = result
@@ -91,13 +103,13 @@ class _PlotModeScreenState extends State<PlotModeScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('플롯을 저장했습니다.')),
+        const SnackBar(content: AppText('플롯을 저장했습니다.')),
       );
       Navigator.pop(context);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('플롯 저장 실패: $error')),
+        SnackBar(content: AppText('플롯 저장 실패: $error')),
       );
     }
   }
@@ -106,7 +118,7 @@ class _PlotModeScreenState extends State<PlotModeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('플롯 모드'),
+        title: const AppText('플롯 모드'),
         actions: [
           IconButton(onPressed: _save, icon: const Icon(Icons.save_rounded)),
         ],
@@ -117,8 +129,8 @@ class _PlotModeScreenState extends State<PlotModeScreen> {
           TextField(
             controller: _background,
             maxLines: 8,
-            decoration: const InputDecoration(
-              labelText: '배경 텍스트',
+            decoration: InputDecoration(
+              labelText: AppText.localize(context, '배경 텍스트'),
               border: OutlineInputBorder(),
             ),
           ),
@@ -126,23 +138,32 @@ class _PlotModeScreenState extends State<PlotModeScreen> {
           TextField(
             controller: _request,
             maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: '사용자 요청',
+            decoration: InputDecoration(
+              labelText: AppText.localize(context, '사용자 요청'),
               border: OutlineInputBorder(),
             ),
+          ),
+          const SizedBox(height: 12),
+          MemoModeAssistantPanel(
+            mode: 'plot',
+            onTextGenerated: (response) {
+              setState(() {
+                _result.text = response;
+              });
+            },
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
             onPressed: _loading ? null : _generate,
             icon: const Icon(Icons.auto_awesome),
-            label: Text(_loading ? '생성 중...' : 'AI 플롯 생성'),
+            label: AppText(_loading ? '생성 중...' : 'AI 플롯 생성'),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _result,
             maxLines: 16,
-            decoration: const InputDecoration(
-              labelText: '검토·수정 후 저장할 결과',
+            decoration: InputDecoration(
+              labelText: AppText.localize(context, '검토·수정 후 저장할 결과'),
               border: OutlineInputBorder(),
             ),
           ),
@@ -152,7 +173,7 @@ class _PlotModeScreenState extends State<PlotModeScreen> {
             child: FilledButton.icon(
               onPressed: _loading ? null : _save,
               icon: const Icon(Icons.save_rounded),
-              label: const Text('플롯 저장'),
+              label: const AppText('플롯 저장'),
             ),
           ),
         ],

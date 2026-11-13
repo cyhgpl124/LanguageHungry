@@ -1,18 +1,27 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
+import 'package:langgry/core/webview/global_webview_dock.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:langgry/core/localization/app_strings.dart';
 import 'package:langgry/features/knowledge/services/knowledge_store.dart';
 import 'package:langgry/features/knowledge/workspace/widgets/global_memo_fab.dart';
+import 'package:langgry/features/knowledge/workspace/widgets/selection_mode_scope.dart';
+
+export 'package:langgry/features/knowledge/workspace/widgets/selection_mode_scope.dart';
 
 class WorkspaceShell extends StatefulWidget {
   const WorkspaceShell({
     required this.child,
     required this.store,
+    this.showWebViewDock,
     super.key,
   });
 
   final Widget child;
   final KnowledgeStore store;
+  final bool? showWebViewDock;
 
   @override
   State<WorkspaceShell> createState() => _WorkspaceShellState();
@@ -56,74 +65,74 @@ class _WorkspaceShellState extends State<WorkspaceShell> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('이 기능을 준비하고 있어요.')),
+      const SnackBar(content: AppText('이 기능을 준비하고 있어요.')),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
+    final strings = AppStrings.of(context);
     return Scaffold(
-      body: SelectionModeScope(
-        notifier: _memoSelectionMode,
-        child: widget.child,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          SelectionModeScope(
+            notifier: _memoSelectionMode,
+            child: widget.child,
+          ),
+          Positioned.fill(
+            child: SafeArea(
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _memoSelectionMode,
+                builder: (context, selectionMode, child) =>
+                    location.startsWith('/knowledge-list') && selectionMode
+                        ? const SizedBox.shrink()
+                        : child!,
+                child: GlobalMemoFab(store: widget.store),
+              ),
+            ),
+          ),
+        ],
       ),
-      floatingActionButton: ValueListenableBuilder<bool>(
-        valueListenable: _memoSelectionMode,
-        builder: (context, selectionMode, child) =>
-            location.startsWith('/knowledge-list') && selectionMode
-                ? const SizedBox.shrink()
-                : child!,
-        child: GlobalMemoFab(store: widget.store),
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index(location),
-        onDestinationSelected: (index) => _select(context, index),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: '홈',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline_rounded),
-            label: '채팅',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.folder_outlined),
-            label: '파일',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.note_alt_outlined),
-            label: '메모',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.storefront_outlined),
-            selectedIcon: Icon(Icons.storefront_rounded),
-            label: '마켓',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            label: '마이페이지',
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (widget.showWebViewDock ?? !kIsWeb) const GlobalWebViewDock(),
+          NavigationBar(
+            selectedIndex: _index(location),
+            onDestinationSelected: (index) => _select(context, index),
+            destinations: [
+              NavigationDestination(
+                icon: const Icon(Icons.home_outlined),
+                selectedIcon: const Icon(Icons.home_rounded),
+                label: strings.home,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.chat_bubble_outline_rounded),
+                label: strings.chat,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.folder_outlined),
+                label: strings.files,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.note_alt_outlined),
+                label: strings.notes,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.storefront_outlined),
+                selectedIcon: const Icon(Icons.storefront_rounded),
+                label: strings.market,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.person_outline_rounded),
+                label: strings.myPage,
+              ),
+            ],
           ),
         ],
       ),
     );
-  }
-}
-
-class SelectionModeScope extends InheritedNotifier<ValueNotifier<bool>> {
-  const SelectionModeScope({
-    required super.notifier,
-    required super.child,
-    super.key,
-  });
-
-  static void update(BuildContext context, bool selectionMode) {
-    final notifier =
-        context.getInheritedWidgetOfExactType<SelectionModeScope>()?.notifier;
-    if (notifier != null && notifier.value != selectionMode) {
-      notifier.value = selectionMode;
-    }
   }
 }

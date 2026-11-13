@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 
 class HtmlPreviewPage extends StatelessWidget {
   const HtmlPreviewPage({
@@ -14,7 +15,7 @@ class HtmlPreviewPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: const Center(child: Text('이 플랫폼에서는 HTML 미리보기를 지원하지 않습니다.')),
+      body: const Center(child: AppText('이 플랫폼에서는 HTML 미리보기를 지원하지 않습니다.')),
     );
   }
 }

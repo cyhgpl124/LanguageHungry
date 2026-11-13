@@ -10,6 +10,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/theme/app_theme.dart';
+import 'core/localization/language_display.dart';
+import 'core/permissions/permission_gate.dart';
+import 'core/permissions/permission_policy.dart';
 import 'features/auth/session/blocs/auth_bloc.dart';
 import 'features/auth/session/blocs/auth_event.dart';
 import 'features/auth/session/blocs/auth_state.dart';
@@ -28,11 +31,12 @@ import 'features/knowledge/services/knowledge_database.dart';
 import 'features/knowledge/services/cloud_first_knowledge_store.dart';
 import 'features/knowledge/services/mobile_cloud_handoff_service.dart';
 import 'features/knowledge/files/pages/file_parsing_screen.dart';
-import 'features/knowledge/memos/pages/memo_workspace_screen.dart';
+import 'features/knowledge/memos/pages/memo_canvas_workspace_screen.dart';
 import 'features/knowledge/workspace/pages/workspace_shell.dart';
 import 'features/market/store/pages/market_screen.dart';
 import 'features/profile/my_profile/pages/my_page.dart';
 import 'features/profile/edit_profile/pages/edit_profile_screen.dart';
+import 'features/profile/permissions/pages/permission_settings_screen.dart';
 import 'firebase_options.dart';
 
 NoTransitionPage<T> _shellPage<T>(
@@ -92,19 +96,12 @@ class _MyAppState extends State<MyApp> {
   late final AuthBloc _authBloc;
   late final GoRouter _router;
   late final MobileCloudHandoffService _mobileCloudHandoff;
+  late final PermissionPolicyRepository _permissionRepository;
   bool _mobileCloudSyncStarted = false;
   Locale _locale = const Locale('ko');
 
   void _applyNativeLanguage(String? language) {
-    final code = switch (language) {
-      '영어' => 'en',
-      '일본어' => 'ja',
-      '중국어' => 'zh',
-      '스페인어' => 'es',
-      '프랑스어' => 'fr',
-      '독일어' => 'de',
-      _ => 'ko',
-    };
+    final code = LanguageDisplay.localeCodeForStorageName(language);
     if (mounted) setState(() => _locale = Locale(code));
   }
 
@@ -144,6 +141,7 @@ class _MyAppState extends State<MyApp> {
     _mobileCloudHandoff = MobileCloudHandoffService(
       localStore: widget.knowledgeStore,
     );
+    _permissionRepository = FirebasePermissionPolicyRepository();
     _authBloc = AuthBloc(widget.repository);
     _router = GoRouter(
       initialLocation: '/splash',
@@ -165,7 +163,7 @@ class _MyAppState extends State<MyApp> {
               } else if (user.needsAdditionalInfo) {
                 _router.go('/additional-info');
               } else if (user.needsLanguageSetup) {
-                _router.go('/language-selection');
+                _router.go('/language-selection?onboarding=1');
               } else {
                 _router.go('/home');
               }
@@ -184,7 +182,7 @@ class _MyAppState extends State<MyApp> {
             onTerms: () => context.push('/terms'),
             onCompleted: () {
               _authBloc.add(const AuthProfileUpdated());
-              _router.go('/language-selection');
+              _router.go('/language-selection?onboarding=1');
             },
           ),
         ),
@@ -196,9 +194,17 @@ class _MyAppState extends State<MyApp> {
         ),
         GoRoute(
           path: '/language-selection',
-          builder: (context, state) => LanguageSelectionScreen(
-            onCompleted: _finishLanguageSetup,
-          ),
+          builder: (context, state) {
+            final screen = LanguageSelectionScreen(
+              onCompleted: _finishLanguageSetup,
+            );
+            return state.uri.queryParameters['onboarding'] == '1'
+                ? screen
+                : PermissionGate(
+                    feature: PermissionFeatures.languageSettings,
+                    child: screen,
+                  );
+          },
         ),
         GoRoute(
           path: '/find-account',
@@ -218,10 +224,13 @@ class _MyAppState extends State<MyApp> {
               path: '/home',
               pageBuilder: (context, state) => _shellPage<void>(
                 state,
-                HomeScreen(
-                  onLanguageSettings: () => _router.go('/language-selection'),
-                  onLanguageChanged: _changeActiveLanguage,
-                  onStartChat: () => _router.go('/chat?start=1'),
+                PermissionGate(
+                  feature: PermissionFeatures.home,
+                  child: HomeScreen(
+                    onLanguageSettings: () => _router.go('/language-selection'),
+                    onLanguageChanged: _changeActiveLanguage,
+                    onStartChat: () => _router.go('/chat?start=1'),
+                  ),
                 ),
               ),
             ),
@@ -229,9 +238,12 @@ class _MyAppState extends State<MyApp> {
               path: '/chat',
               pageBuilder: (context, state) => _shellPage<void>(
                 state,
-                ChatWorkspaceScreen(
-                  store: widget.knowledgeStore,
-                  autoStart: state.uri.queryParameters['start'] == '1',
+                PermissionGate(
+                  feature: PermissionFeatures.chat,
+                  child: ChatWorkspaceScreen(
+                    store: widget.knowledgeStore,
+                    autoStart: state.uri.queryParameters['start'] == '1',
+                  ),
                 ),
               ),
             ),
@@ -239,37 +251,76 @@ class _MyAppState extends State<MyApp> {
               path: '/file-import',
               pageBuilder: (context, state) => _shellPage<void>(
                 state,
-                FileParsingScreen(store: widget.knowledgeStore),
+                PermissionGate(
+                  feature: PermissionFeatures.fileImport,
+                  child: FileParsingScreen(store: widget.knowledgeStore),
+                ),
               ),
             ),
             GoRoute(
               path: '/knowledge-list',
               pageBuilder: (context, state) => _shellPage<void>(
                 state,
-                MemoWorkspaceScreen(store: widget.knowledgeStore),
+                PermissionGate.any(
+                  features: const [
+                    PermissionFeatures.memos,
+                    PermissionFeatures.memoCanvas,
+                    PermissionFeatures.dynamicLists,
+                    PermissionFeatures.plots,
+                  ],
+                  child:
+                      MemoCanvasWorkspaceScreen(store: widget.knowledgeStore),
+                ),
               ),
             ),
             GoRoute(
               path: '/market',
-              pageBuilder: (context, state) =>
-                  _shellPage<void>(state, const MarketScreen()),
+              pageBuilder: (context, state) => _shellPage<void>(
+                state,
+                const PermissionGate(
+                  feature: PermissionFeatures.market,
+                  child: MarketScreen(),
+                ),
+              ),
             ),
             GoRoute(
               path: '/profile',
               pageBuilder: (context, state) => _shellPage<void>(
                 state,
-                MyPage(
-                  onLanguageSettings: () => _router.go('/language-selection'),
-                  onEditProfile: () async {
-                    await _router.push<bool>('/profile/edit');
-                  },
+                PermissionGate(
+                  feature: PermissionFeatures.profile,
+                  child: MyPage(
+                    onLanguageSettings: () => _router.go('/language-selection'),
+                    onEditProfile: () async {
+                      await _router.push<bool>('/profile/edit');
+                    },
+                    onPermissionSettings: () =>
+                        _router.push<void>('/profile/permissions'),
+                    showPermissionSettings: _permissionRepository.isSuperuser,
+                  ),
                 ),
               ),
             ),
             GoRoute(
               path: '/profile/edit',
-              pageBuilder: (context, state) =>
-                  _shellPage<void>(state, const EditProfileScreen()),
+              pageBuilder: (context, state) => _shellPage<void>(
+                state,
+                const PermissionGate(
+                  feature: PermissionFeatures.profileEdit,
+                  child: EditProfileScreen(),
+                ),
+              ),
+            ),
+            GoRoute(
+              path: '/profile/permissions',
+              pageBuilder: (context, state) => _shellPage<void>(
+                state,
+                const PermissionGate(
+                  feature: PermissionFeatures.permissionSettings,
+                  superuserOnly: true,
+                  child: PermissionSettingsScreen(),
+                ),
+              ),
             ),
           ],
         ),
@@ -281,62 +332,66 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return RepositoryProvider.value(
       value: widget.repository,
-      child: BlocProvider.value(
-        value: _authBloc,
-        child: MaterialApp.router(
-          title: 'LANGGRY',
-          theme: AppTheme.light,
-          locale: _locale,
-          supportedLocales: const [
-            Locale('ko'),
-            Locale('en'),
-            Locale('ja'),
-            Locale('zh'),
-            Locale('es'),
-            Locale('fr'),
-            Locale('de'),
-          ],
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          routerConfig: _router,
-          builder: (context, child) => BlocListener<AuthBloc, AuthState>(
-            listener: (context, state) {
-              final path = _router.routeInformationProvider.value.uri.path;
-              if (state is AuthAuthenticated) {
-                if (!kIsWeb &&
-                    (defaultTargetPlatform == TargetPlatform.android ||
-                        defaultTargetPlatform == TargetPlatform.iOS)) {
-                  if (!_mobileCloudSyncStarted) {
-                    _mobileCloudSyncStarted = true;
-                    unawaited(_activateMobileCloudData());
+      child: RepositoryProvider<PermissionPolicyRepository>.value(
+        value: _permissionRepository,
+        child: BlocProvider.value(
+          value: _authBloc,
+          child: MaterialApp.router(
+            title: 'LANGGRY',
+            theme: AppTheme.light,
+            locale: _locale,
+            supportedLocales: const [
+              Locale('ko'),
+              Locale('en'),
+              Locale('ja'),
+              Locale('zh'),
+              Locale('es'),
+              Locale('fr'),
+              Locale('de'),
+            ],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            routerConfig: _router,
+            builder: (context, child) => BlocListener<AuthBloc, AuthState>(
+              listener: (context, state) {
+                _permissionRepository.invalidateCache();
+                final path = _router.routeInformationProvider.value.uri.path;
+                if (state is AuthAuthenticated) {
+                  if (!kIsWeb &&
+                      (defaultTargetPlatform == TargetPlatform.android ||
+                          defaultTargetPlatform == TargetPlatform.iOS)) {
+                    if (!_mobileCloudSyncStarted) {
+                      _mobileCloudSyncStarted = true;
+                      unawaited(_activateMobileCloudData());
+                    }
                   }
-                }
-                if (state.user.needsEmailVerification &&
-                    path != '/verify-email') {
-                  _router.go('/verify-email');
-                } else if (state.user.needsAdditionalInfo &&
-                    path != '/additional-info') {
-                  _router.go('/additional-info');
-                } else if (state.user.needsLanguageSetup &&
-                    path != '/language-selection') {
-                  _router.go('/language-selection');
-                } else if (!state.user.needsAdditionalInfo &&
-                    !state.user.needsLanguageSetup &&
-                    path != '/home') {
-                  _router.go('/home');
-                }
-              } else if (state is AuthFailure) {
-                if (path == '/splash') {
+                  if (state.user.needsEmailVerification &&
+                      path != '/verify-email') {
+                    _router.go('/verify-email');
+                  } else if (state.user.needsAdditionalInfo &&
+                      path != '/additional-info') {
+                    _router.go('/additional-info');
+                  } else if (state.user.needsLanguageSetup &&
+                      path != '/language-selection') {
+                    _router.go('/language-selection?onboarding=1');
+                  } else if (!state.user.needsAdditionalInfo &&
+                      !state.user.needsLanguageSetup &&
+                      path != '/home') {
+                    _router.go('/home');
+                  }
+                } else if (state is AuthFailure) {
+                  if (path == '/splash') {
+                    _router.go('/login');
+                  }
+                } else if (state is AuthUnauthenticated && path != '/login') {
                   _router.go('/login');
                 }
-              } else if (state is AuthUnauthenticated && path != '/login') {
-                _router.go('/login');
-              }
-            },
-            child: child!,
+              },
+              child: child!,
+            ),
           ),
         ),
       ),

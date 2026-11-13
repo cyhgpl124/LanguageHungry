@@ -13,6 +13,8 @@ class AppStrings {
   String get chat => _text('채팅', 'Chat', 'チャット', '聊天', 'Chat', 'Chat', 'Chat');
   String get files =>
       _text('파일', 'Files', 'ファイル', '文件', 'Archivos', 'Fichiers', 'Dateien');
+  String get market =>
+      _text('마켓', 'Market', 'マーケット', '市场', 'Mercado', 'Marché', 'Markt');
   String get notes =>
       _text('메모', 'Notes', 'メモ', '笔记', 'Notas', 'Notes', 'Notizen');
   String get myPage =>

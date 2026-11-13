@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 
 class MarketScreen extends StatelessWidget {
   const MarketScreen({super.key});
@@ -7,16 +8,16 @@ class MarketScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('마켓'),
+        title: const AppText('마켓'),
         actions: [
           IconButton(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('마켓 검색 기능을 준비하고 있어요.')),
+                const SnackBar(content: AppText('마켓 검색 기능을 준비하고 있어요.')),
               );
             },
             icon: const Icon(Icons.search_rounded),
-            tooltip: '검색',
+            tooltip: AppText.localize(context, '검색'),
           ),
         ],
       ),
@@ -35,12 +36,12 @@ class MarketScreen extends StatelessWidget {
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(height: 16),
-                  Text(
+                  AppText(
                     'LANGGRY 마켓',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 8),
-                  Text(
+                  AppText(
                     '학습 자료와 언어 콘텐츠를 만날 수 있는 공간입니다.',
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
@@ -86,9 +87,9 @@ class _MarketPlaceholderCard extends StatelessWidget {
     return Card(
       child: ListTile(
         leading: Icon(icon),
-        title: Text(title),
-        subtitle: Text(description),
-        trailing: const Chip(label: Text('준비 중')),
+        title: AppText(title),
+        subtitle: AppText(description),
+        trailing: const Chip(label: AppText('준비 중')),
       ),
     );
   }

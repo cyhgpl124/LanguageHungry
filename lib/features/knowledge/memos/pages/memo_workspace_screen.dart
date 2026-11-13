@@ -4,6 +4,9 @@ import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
+import 'package:langgry/core/permissions/permission_gate.dart';
+import 'package:langgry/core/permissions/permission_policy.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:langgry/features/knowledge/services/knowledge_database.dart';
@@ -13,7 +16,9 @@ import 'package:langgry/features/knowledge/models/knowledge_node.dart';
 import 'package:langgry/features/knowledge/list/pages/dynamic_list_screen.dart';
 import 'package:langgry/features/knowledge/plot/pages/plot_mode_screen.dart';
 import 'package:langgry/features/knowledge/plot/widgets/plot_edit_dialog.dart';
-import 'package:langgry/features/knowledge/workspace/pages/workspace_shell.dart';
+import 'package:langgry/features/knowledge/memos/services/memo_mode_assistant.dart';
+import 'package:langgry/features/knowledge/workspace/widgets/selection_mode_scope.dart';
+import 'package:langgry/features/knowledge/workspace/widgets/unified_memo_dialog.dart';
 
 enum _PlotAction { edit, delete }
 
@@ -82,7 +87,8 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
     final nodes = await widget.store.listNodes();
     final edges = await widget.store.listEdges();
     if (!mounted) return;
-    final memos = nodes.where((node) => node.mode == 'memo').toList();
+    final memos =
+        nodes.where((node) => node.type == 'memo' && node.mode != 'plot').toList();
     final plots = nodes.where((node) => node.mode == 'plot').toList();
     final currentSelectedId = _selected?.id;
     final currentSecondaryId = _secondarySelected?.id;
@@ -290,7 +296,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
       result = await showDialog<Map<String, String>>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('메모 수정'),
+          title: const AppText('메모 수정'),
           content: SizedBox(
             width: 480,
             child: Column(
@@ -299,14 +305,15 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
                 TextField(
                   controller: titleController,
                   maxLength: 10,
-                  decoration: const InputDecoration(labelText: '제목'),
+                  decoration: InputDecoration(
+                      labelText: AppText.localize(context, '제목')),
                 ),
                 TextField(
                   controller: contentController,
                   minLines: 4,
                   maxLines: 8,
-                  decoration: const InputDecoration(
-                    labelText: '메모 본문',
+                  decoration: InputDecoration(
+                    labelText: AppText.localize(context, '메모 본문'),
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -316,7 +323,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('취소'),
+              child: const AppText('취소'),
             ),
             FilledButton(
               onPressed: () {
@@ -324,7 +331,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
                 final content = contentController.text.trim();
                 if (title.isEmpty || content.isEmpty) {
                   ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(content: Text('제목과 메모 본문을 입력해 주세요.')),
+                    const SnackBar(content: AppText('제목과 메모 본문을 입력해 주세요.')),
                   );
                   return;
                 }
@@ -333,7 +340,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
                   'content': content,
                 });
               },
-              child: const Text('저장'),
+              child: const AppText('저장'),
             ),
           ],
         ),
@@ -342,7 +349,11 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
       titleController.dispose();
       contentController.dispose();
     }
-    if (result == null) return;
+    if (result == null || !mounted) return;
+    if (!await requireFeatureAccess(context, PermissionFeatures.aiTools)) {
+      return;
+    }
+    if (!mounted) return;
     final title = result['title']!;
     final content = result['content']!;
     try {
@@ -366,14 +377,15 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
     } on FirebaseException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('메모 수정 실패: ${error.message ?? error.code}')),
+          SnackBar(
+              content: AppText('메모 수정 실패: ${error.message ?? error.code}')),
         );
       }
       return;
     } on StateError catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('메모 수정 실패: $error')),
+          SnackBar(content: AppText('메모 수정 실패: $error')),
         );
       }
       return;
@@ -393,16 +405,16 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('메모 삭제'),
-        content: Text('"${node.title}" 메모와 연결된 관계를 삭제할까요?'),
+        title: const AppText('메모 삭제'),
+        content: AppText('"${node.title}" 메모와 연결된 관계를 삭제할까요?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('취소'),
+            child: const AppText('취소'),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('삭제'),
+            child: const AppText('삭제'),
           ),
         ],
       ),
@@ -413,14 +425,15 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
     } on FirebaseException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('메모 삭제 실패: ${error.message ?? error.code}')),
+          SnackBar(
+              content: AppText('메모 삭제 실패: ${error.message ?? error.code}')),
         );
       }
       return;
     } on StateError catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('메모 삭제 실패: $error')),
+          SnackBar(content: AppText('메모 삭제 실패: $error')),
         );
       }
       return;
@@ -445,26 +458,27 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('메모 관계 연결'),
+          title: const AppText('메모 관계 연결'),
           content: SizedBox(
             width: 400,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${first.title}  ↔  ${second.title}'),
+                AppText('${first.title}  ↔  ${second.title}'),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: direction,
-                  decoration: const InputDecoration(labelText: '방향'),
+                  decoration: InputDecoration(
+                      labelText: AppText.localize(context, '방향')),
                   items: [
                     DropdownMenuItem(
                       value: 'first',
-                      child: Text('${first.title} → ${second.title}'),
+                      child: AppText('${first.title} → ${second.title}'),
                     ),
                     DropdownMenuItem(
                       value: 'second',
-                      child: Text('${second.title} → ${first.title}'),
+                      child: AppText('${second.title} → ${first.title}'),
                     ),
                   ],
                   onChanged: (value) {
@@ -474,11 +488,12 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: relation,
-                  decoration: const InputDecoration(labelText: '논리 관계'),
+                  decoration: InputDecoration(
+                      labelText: AppText.localize(context, '논리 관계')),
                   items: const [
-                    DropdownMenuItem(value: '인과관계', child: Text('인과관계')),
-                    DropdownMenuItem(value: '상관관계', child: Text('상관관계')),
-                    DropdownMenuItem(value: '포함관계', child: Text('포함관계')),
+                    DropdownMenuItem(value: '인과관계', child: AppText('인과관계')),
+                    DropdownMenuItem(value: '상관관계', child: AppText('상관관계')),
+                    DropdownMenuItem(value: '포함관계', child: AppText('포함관계')),
                   ],
                   onChanged: (value) {
                     if (value != null) setDialogState(() => relation = value);
@@ -490,14 +505,14 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('취소'),
+              child: const AppText('취소'),
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop({
                 'from': direction,
                 'relation': relation,
               }),
-              child: const Text('연결'),
+              child: const AppText('연결'),
             ),
           ],
         ),
@@ -513,7 +528,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
     final selectedCategory = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('파일 분류'),
+        title: const AppText('파일 분류'),
         content: SizedBox(
           width: 400,
           child: TextField(
@@ -524,9 +539,9 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
                 Navigator.of(dialogContext).pop(value.trim());
               }
             },
-            decoration: const InputDecoration(
-              labelText: '분류명',
-              hintText: '예: 영어, 여행, 업무',
+            decoration: InputDecoration(
+              labelText: AppText.localize(context, '분류명'),
+              hintText: AppText.localize(context, '예: 영어, 여행, 업무'),
               border: OutlineInputBorder(),
             ),
           ),
@@ -534,20 +549,20 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('취소'),
+            child: const AppText('취소'),
           ),
           FilledButton(
             onPressed: () {
               final value = category.trim();
               if (value.isEmpty) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('분류를 입력해 주세요.')),
+                  const SnackBar(content: AppText('분류를 입력해 주세요.')),
                 );
                 return;
               }
               Navigator.of(dialogContext).pop(value);
             },
-            child: const Text('파일 만들기'),
+            child: const AppText('파일 만들기'),
           ),
         ],
       ),
@@ -621,7 +636,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
       });
       _syncSelectionModeVisibility();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('선택한 메모로 파일을 만들었습니다.')),
+        const SnackBar(content: AppText('선택한 메모로 파일을 만들었습니다.')),
       );
     }
   }
@@ -676,11 +691,11 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('메모 파일 가져오기'),
+          title: const AppText('메모 파일 가져오기'),
           content: SizedBox(
             width: 520,
             child: files.isEmpty
-                ? const Text('저장된 메모 파일이 없습니다.')
+                ? const AppText('저장된 메모 파일이 없습니다.')
                 : ListView(
                     shrinkWrap: true,
                     children: files
@@ -708,11 +723,11 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
                 if (dialogContext.mounted) setDialogState(() {});
               },
               icon: const Icon(Icons.science_rounded),
-              label: const Text('예시 파일'),
+              label: const AppText('예시 파일'),
             ),
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('닫기'),
+              child: const AppText('닫기'),
             ),
           ],
         ),
@@ -720,7 +735,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
     );
     if (!mounted || selectedFile == null) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${selectedFile.title}을(를) 가져왔습니다.')),
+      SnackBar(content: AppText('${selectedFile.title}을(를) 가져왔습니다.')),
     );
   }
 
@@ -739,28 +754,28 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
                 children: [
                   FloatingActionButton.small(
                     heroTag: 'memo-selection-relate',
-                    tooltip: '논리관계 추가',
+                    tooltip: AppText.localize(context, '논리관계 추가'),
                     onPressed: _selectedIds.length >= 2 ? _manualConnect : null,
                     child: const Icon(Icons.hub_rounded),
                   ),
                   const SizedBox(width: 8),
                   FloatingActionButton.small(
                     heroTag: 'memo-selection-edit',
-                    tooltip: '수정',
+                    tooltip: AppText.localize(context, '수정'),
                     onPressed: activeMemoSelected ? _editActiveMemo : null,
                     child: const Icon(Icons.edit_rounded),
                   ),
                   const SizedBox(width: 8),
                   FloatingActionButton.small(
                     heroTag: 'memo-selection-delete',
-                    tooltip: '삭제',
+                    tooltip: AppText.localize(context, '삭제'),
                     onPressed: activeMemoSelected ? _deleteActiveMemo : null,
                     child: const Icon(Icons.delete_outline_rounded),
                   ),
                   const SizedBox(width: 8),
                   FloatingActionButton.small(
                     heroTag: 'memo-selection-file',
-                    tooltip: '파일 만들기',
+                    tooltip: AppText.localize(context, '파일 만들기'),
                     onPressed: _selectedIds.isNotEmpty
                         ? _createFileFromSelection
                         : null,
@@ -771,16 +786,19 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
             )
           : null,
       appBar: AppBar(
-        title: const Text('메모'),
+        title: const AppText('메모'),
         actions: _activeTab == 0
             ? [
                 IconButton(
-                  tooltip: '메모 파일 다운로드',
+                  tooltip: AppText.localize(context, '메모 파일 다운로드'),
                   onPressed: _openFileLibrary,
                   icon: const Icon(Icons.cloud_download_rounded),
                 ),
                 IconButton(
-                  tooltip: _splitMode ? '단일 화면' : '분할 화면',
+                  tooltip: AppText.localize(
+                    context,
+                    _splitMode ? '단일 화면' : '분할 화면',
+                  ),
                   onPressed: () => setState(() {
                     _splitMode = !_splitMode;
                     _secondarySelected ??= _firstWhereOrNull(
@@ -795,7 +813,10 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
                   ),
                 ),
                 IconButton(
-                  tooltip: _selectionMode ? '선택 취소' : '메모 선택',
+                  tooltip: AppText.localize(
+                    context,
+                    _selectionMode ? '선택 취소' : '메모 선택',
+                  ),
                   onPressed: _toggleSelectionMode,
                   icon: Icon(
                     _selectionMode ? Icons.close : Icons.checklist_rounded,
@@ -805,10 +826,19 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
             : null,
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: '메모 모드', icon: Icon(Icons.sticky_note_2_outlined)),
-            Tab(text: '리스트 모드', icon: Icon(Icons.table_chart_outlined)),
-            Tab(text: '플롯 모드', icon: Icon(Icons.auto_graph_rounded)),
+          tabs: [
+            Tab(
+              text: AppText.localize(context, '메모 모드'),
+              icon: const Icon(Icons.sticky_note_2_outlined),
+            ),
+            Tab(
+              text: AppText.localize(context, '리스트 모드'),
+              icon: const Icon(Icons.table_chart_outlined),
+            ),
+            Tab(
+              text: AppText.localize(context, '플롯 모드'),
+              icon: const Icon(Icons.auto_graph_rounded),
+            ),
           ],
         ),
       ),
@@ -816,8 +846,14 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
         controller: _tabController,
         children: [
           _buildMemoTab(isWide),
-          DynamicListScreen(store: widget.store, embedded: true),
-          _buildPlotTab(),
+          PermissionGate(
+            feature: PermissionFeatures.dynamicLists,
+            child: DynamicListScreen(store: widget.store, embedded: true),
+          ),
+          PermissionGate(
+            feature: PermissionFeatures.plots,
+            child: _buildPlotTab(),
+          ),
         ],
       ),
     );
@@ -825,7 +861,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
 
   Widget _buildMemoTab(bool isWide) {
     if (_nodes.isEmpty) {
-      return const Center(child: Text('저장된 메모가 없습니다. + 버튼으로 메모를 추가해 주세요.'));
+      return const Center(child: AppText('저장된 메모가 없습니다. + 버튼으로 메모를 추가해 주세요.'));
     }
     final firstPanel = _buildPanel(
       selected: _selected,
@@ -844,7 +880,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
     if (!_splitMode) return firstPanel;
 
     final secondPanel = _secondarySelected == null
-        ? const Center(child: Text('분할 화면에 표시할 두 번째 메모가 없습니다.'))
+        ? const Center(child: AppText('분할 화면에 표시할 두 번째 메모가 없습니다.'))
         : _buildPanel(
             selected: _secondarySelected,
             query: _rightQuery,
@@ -886,20 +922,15 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
           child: Align(
             alignment: Alignment.centerRight,
             child: FilledButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PlotModeScreen(store: widget.store),
-                ),
-              ),
+              onPressed: _openPlotMode,
               icon: const Icon(Icons.add_rounded),
-              label: const Text('플롯 생성'),
+              label: const AppText('플롯 생성'),
             ),
           ),
         ),
         Expanded(
           child: _plotNodes.isEmpty
-              ? const Center(child: Text('저장된 플롯이 없습니다. 플롯을 생성해 주세요.'))
+              ? const Center(child: AppText('저장된 플롯이 없습니다. 플롯을 생성해 주세요.'))
               : GridView.builder(
                   padding: EdgeInsets.all(size.width * 0.02),
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -943,6 +974,20 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
     );
   }
 
+  Future<void> _openPlotMode() async {
+    if (!await requireFeatureAccess(context, PermissionFeatures.plots)) return;
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PermissionGate(
+          feature: PermissionFeatures.plots,
+          child: PlotModeScreen(store: widget.store),
+        ),
+      ),
+    );
+  }
+
   void _showPlotDetails(KnowledgeNode node) {
     final size = MediaQuery.sizeOf(context);
     showDialog<void>(
@@ -974,7 +1019,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('닫기'),
+                    child: const AppText('닫기'),
                   ),
                 ),
               ],
@@ -993,7 +1038,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
           children: [
             ListTile(
               leading: const Icon(Icons.edit_outlined),
-              title: const Text('수정'),
+              title: const AppText('수정'),
               onTap: () => Navigator.pop(context, _PlotAction.edit),
             ),
             ListTile(
@@ -1001,7 +1046,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
                 Icons.delete_outline,
                 color: Theme.of(context).colorScheme.error,
               ),
-              title: Text(
+              title: AppText(
                 '삭제',
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
@@ -1018,16 +1063,16 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('플롯 삭제'),
-          content: Text('"${node.title}" 플롯을 삭제할까요?'),
+          title: const AppText('플롯 삭제'),
+          content: AppText('"${node.title}" 플롯을 삭제할까요?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('취소'),
+              child: const AppText('취소'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('삭제'),
+              child: const AppText('삭제'),
             ),
           ],
         ),
@@ -1099,7 +1144,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
                     onSubmitted: (_) => onSearch(),
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search),
-                      hintText: '메모 검색',
+                      hintText: AppText.localize(context, '메모 검색'),
                       isDense: true,
                       border: const OutlineInputBorder(),
                       contentPadding:
@@ -1117,17 +1162,17 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
                 DropdownButton<String>(
                   value: searchMode,
                   items: const [
-                    DropdownMenuItem(value: '전체검색', child: Text('전체검색')),
-                    DropdownMenuItem(value: '태그검색', child: Text('태그검색')),
-                    DropdownMenuItem(value: '제목검색', child: Text('제목검색')),
-                    DropdownMenuItem(value: '내용검색', child: Text('내용검색')),
+                    DropdownMenuItem(value: '전체검색', child: AppText('전체검색')),
+                    DropdownMenuItem(value: '태그검색', child: AppText('태그검색')),
+                    DropdownMenuItem(value: '제목검색', child: AppText('제목검색')),
+                    DropdownMenuItem(value: '내용검색', child: AppText('내용검색')),
                   ],
                   onChanged: (value) {
                     if (value != null) onSearchModeChanged(value);
                   },
                 ),
                 IconButton(
-                  tooltip: '검색 실행',
+                  tooltip: AppText.localize(context, '검색 실행'),
                   onPressed: onSearch,
                   icon: const Icon(Icons.arrow_forward_rounded),
                 ),
@@ -1192,7 +1237,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
               child: Row(
                 children: [
                   const Expanded(
-                    child: Text('찾기',
+                    child: AppText('찾기',
                         style: TextStyle(
                             fontSize: 20, fontWeight: FontWeight.bold)),
                   ),
@@ -1205,7 +1250,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
             ),
             Expanded(
               child: results.isEmpty
-                  ? const Center(child: Text('검색 결과가 없습니다.'))
+                  ? const Center(child: AppText('검색 결과가 없습니다.'))
                   : ListView.builder(
                       itemCount: results.length,
                       itemBuilder: (_, index) {
@@ -1221,9 +1266,22 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
                                       : null,
                                 )
                               : Icon(_modeIcon(node)),
-                          title: Text(node.title),
-                          subtitle: Text(node.content,
-                              maxLines: 2, overflow: TextOverflow.ellipsis),
+                          title: AppText(node.title),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              AppText(
+                                node.content,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              AppText(
+                                '생성일: ${_dateLabel(node.createdAt)}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
                           onLongPress: () {
                             setState(() {
                               _selectionMode = true;
@@ -1255,7 +1313,7 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
 
   Widget _selectedCard(KnowledgeNode? selected) {
     if (selected == null) {
-      return const Center(child: Text('메모를 선택해 주세요.'));
+      return const Center(child: AppText('메모를 선택해 주세요.'));
     }
     final size = MediaQuery.sizeOf(context);
     return LayoutBuilder(
@@ -1308,16 +1366,19 @@ class _MemoWorkspaceScreenState extends State<MemoWorkspaceScreen>
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 12),
-                SelectableText(selected.content),
+                MemoModeContentDisplay(
+                  content: selected.content,
+                  mode: AssistantDisplayMode.fromKey(selected.mode),
+                ),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
                   runSpacing: 4,
                   children: [
-                    Text('생성 ${_dateLabel(selected.createdAt)}'),
-                    Text('수정 ${_dateLabel(selected.updatedAt)}'),
+                    AppText('생성 ${_dateLabel(selected.createdAt)}'),
+                    AppText('수정 ${_dateLabel(selected.updatedAt)}'),
                     Text(_languageLabel(selected)),
-                    ...selected.tags.map((tag) => Text('#$tag')),
+                    ...selected.tags.map((tag) => AppText('#$tag')),
                   ],
                 ),
               ],

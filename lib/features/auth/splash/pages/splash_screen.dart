@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:langgry/core/theme/app_theme.dart';
@@ -38,7 +39,7 @@ class _SplashScreenState extends State<SplashScreen> {
               height: 180,
             ),
             const SizedBox(height: 20),
-            const Text(
+            const AppText(
               '언어에 고픈 당신, 랭그리가 함께합니다.',
               style: TextStyle(color: Colors.black, fontSize: 13),
             ),

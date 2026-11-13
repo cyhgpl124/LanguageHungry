@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:flutter/foundation.dart';
 
 import './brand_mark.dart';
@@ -26,7 +27,7 @@ class AuthScaffold extends StatelessWidget {
           children: [
             const BrandMark(compact: true),
             const SizedBox(height: 42),
-            Text(
+            AppText(
               title,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w800,
@@ -34,7 +35,7 @@ class AuthScaffold extends StatelessWidget {
             ),
             if (subtitle != null) ...[
               const SizedBox(height: 8),
-              Text(
+              AppText(
                 subtitle!,
                 style: TextStyle(color: Colors.blueGrey.shade600),
               ),

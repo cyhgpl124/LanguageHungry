@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:langgry/core/firebase/firestore_database.dart';
 import 'package:uuid/uuid.dart';
 
@@ -256,13 +257,13 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
     final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('사진 제목 변경'),
+        title: const AppText('사진 제목 변경'),
         content: TextField(
           controller: controller,
           autofocus: true,
           maxLength: 80,
-          decoration: const InputDecoration(
-            labelText: '제목',
+          decoration: InputDecoration(
+            labelText: AppText.localize(context, '제목'),
             border: OutlineInputBorder(),
           ),
           onSubmitted: (value) => Navigator.of(dialogContext).pop(value.trim()),
@@ -270,12 +271,12 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('취소'),
+            child: const AppText('취소'),
           ),
           FilledButton(
             onPressed: () =>
                 Navigator.of(dialogContext).pop(controller.text.trim()),
-            child: const Text('적용'),
+            child: const AppText('적용'),
           ),
         ],
       ),
@@ -358,20 +359,20 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
     final choice = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('제목 변경 저장'),
-        content: const Text('저장하지 않은 제목 변경이 있습니다.'),
+        title: const AppText('제목 변경 저장'),
+        content: const AppText('저장하지 않은 제목 변경이 있습니다.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, 'discard'),
-            child: const Text('저장 안 하고 나가기'),
+            child: const AppText('저장 안 하고 나가기'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, 'stay'),
-            child: const Text('계속 편집'),
+            child: const AppText('계속 편집'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, 'save'),
-            child: const Text('저장하고 나가기'),
+            child: const AppText('저장하고 나가기'),
           ),
         ],
       ),
@@ -509,16 +510,16 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('사진 완전 삭제'),
-        content: Text('"${image.name}" 사진을 영구적으로 삭제할까요?'),
+        title: const AppText('사진 완전 삭제'),
+        content: AppText('"${image.name}" 사진을 영구적으로 삭제할까요?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('취소'),
+            child: const AppText('취소'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('완전 삭제'),
+            child: const AppText('완전 삭제'),
           ),
         ],
       ),
@@ -641,7 +642,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
   void _notify(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(content: AppText(message)),
     );
   }
 
@@ -650,13 +651,13 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
     final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('새 앨범'),
+        title: const AppText('새 앨범'),
         content: TextField(
           controller: controller,
           autofocus: true,
           maxLength: 40,
-          decoration: const InputDecoration(
-            labelText: '앨범 이름',
+          decoration: InputDecoration(
+            labelText: AppText.localize(context, '앨범 이름'),
             border: OutlineInputBorder(),
           ),
           onSubmitted: (value) => Navigator.of(dialogContext).pop(value.trim()),
@@ -664,12 +665,12 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('취소'),
+            child: const AppText('취소'),
           ),
           FilledButton(
             onPressed: () =>
                 Navigator.of(dialogContext).pop(controller.text.trim()),
-            child: const Text('추가'),
+            child: const AppText('추가'),
           ),
         ],
       ),
@@ -710,13 +711,13 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
     final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(title),
+        title: AppText(title),
         content: TextField(
           controller: controller,
           autofocus: true,
           maxLength: 40,
-          decoration: const InputDecoration(
-            labelText: '앨범 이름',
+          decoration: InputDecoration(
+            labelText: AppText.localize(context, '앨범 이름'),
             border: OutlineInputBorder(),
           ),
           onSubmitted: (value) => Navigator.of(dialogContext).pop(value.trim()),
@@ -724,12 +725,12 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('취소'),
+            child: const AppText('취소'),
           ),
           FilledButton(
             onPressed: () =>
                 Navigator.of(dialogContext).pop(controller.text.trim()),
-            child: const Text('저장'),
+            child: const AppText('저장'),
           ),
         ],
       ),
@@ -772,18 +773,18 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('앨범 삭제'),
-        content: Text(
+        title: const AppText('앨범 삭제'),
+        content: AppText(
           '"$albumName" 앨범을 삭제할까요? 사진은 갤러리에 남고 앨범에서만 제거됩니다.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('취소'),
+            child: const AppText('취소'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('삭제'),
+            child: const AppText('삭제'),
           ),
         ],
       ),
@@ -834,12 +835,12 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('앨범 관리'),
+          title: const AppText('앨범 관리'),
           content: SizedBox(
             width: 420,
             height: 360,
             child: albumList.isEmpty
-                ? const Center(child: Text('등록된 앨범이 없습니다.'))
+                ? const Center(child: AppText('등록된 앨범이 없습니다.'))
                 : ListView.builder(
                     itemCount: albumList.length,
                     itemBuilder: (context, index) {
@@ -849,7 +850,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                         trailing: Wrap(
                           children: [
                             IconButton(
-                              tooltip: '이름 수정',
+                              tooltip: AppText.localize(context, '이름 수정'),
                               onPressed: () async {
                                 final name = await _renameAlbum(
                                   album.key,
@@ -867,7 +868,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                               icon: const Icon(Icons.edit_outlined),
                             ),
                             IconButton(
-                              tooltip: '앨범 삭제',
+                              tooltip: AppText.localize(context, '앨범 삭제'),
                               onPressed: () async {
                                 if (await _deleteAlbum(
                                   album.key,
@@ -889,7 +890,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('닫기'),
+              child: const AppText('닫기'),
             ),
           ],
         ),
@@ -927,10 +928,10 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            const ListTile(title: Text('앨범 지정')),
+            const ListTile(title: AppText('앨범 지정')),
             ListTile(
               leading: const Icon(Icons.remove_circle_outline),
-              title: const Text('앨범에서 제거'),
+              title: const AppText('앨범에서 제거'),
               onTap: () => Navigator.pop(context, ''),
             ),
             for (final album in albums.entries)
@@ -1033,7 +1034,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: IconButton.filledTonal(
-                              tooltip: '이전 사진',
+                              tooltip: AppText.localize(context, '이전 사진'),
                               onPressed: () => pageController.previousPage(
                                 duration: const Duration(milliseconds: 250),
                                 curve: Curves.easeOut,
@@ -1045,7 +1046,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: IconButton.filledTonal(
-                              tooltip: '다음 사진',
+                              tooltip: AppText.localize(context, '다음 사진'),
                               onPressed: () => pageController.nextPage(
                                 duration: const Duration(milliseconds: 250),
                                 curve: Curves.easeOut,
@@ -1058,10 +1059,10 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                   ),
                   ListTile(
                     title: Text(current.name),
-                    subtitle: Text(
+                    subtitle: AppText(
                       '${currentIndex + 1}/${images.length} · '
                       '${current.roomTitle} · '
-                      '${current.kind == 'generated' ? '생성' : '업로드'} · '
+                      '${AppText.localize(context, current.kind == 'generated' ? '생성' : '업로드')} · '
                       '${_dateLabel(current.createdAt)}'
                       '${current.prompt.isEmpty ? '' : '\n${current.prompt}'}',
                     ),
@@ -1074,7 +1075,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                         await _setAlbum(current, albums);
                       },
                       icon: const Icon(Icons.photo_album_outlined),
-                      label: Text(
+                      label: AppText(
                         current.albumId == null
                             ? '앨범에 추가'
                             : '앨범: ${albums[current.albumId] ?? '지정됨'}',
@@ -1097,11 +1098,14 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
     final groups = <String, List<_GalleryImage>>{};
     for (final image in images) {
       final key = switch (_view) {
-        _GalleryView.all =>
-          '${image.createdAt.year}년 ${image.createdAt.month}월',
+        _GalleryView.all => AppText.localize(
+            context,
+            '${image.createdAt.year}년 ${image.createdAt.month}월',
+          ),
         _GalleryView.rooms => _roomGroupKey(image),
-        _GalleryView.albums =>
-          image.albumId == null ? '앨범 미지정' : albums[image.albumId] ?? '앨범 미지정',
+        _GalleryView.albums => image.albumId == null
+            ? AppText.localize(context, '앨범 미지정')
+            : albums[image.albumId] ?? AppText.localize(context, '앨범 미지정'),
       };
       groups.putIfAbsent(key, () => []).add(image);
     }
@@ -1125,7 +1129,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(
+          title: AppText(
             _trashMode
                 ? '휴지통'
                 : widget.selectionMode
@@ -1141,7 +1145,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                 !_trashMode)
               IconButton(
                 onPressed: _confirmLeaveSelection,
-                tooltip: '선택 모드 나가기',
+                tooltip: AppText.localize(context, '선택 모드 나가기'),
                 icon: const Icon(Icons.close_rounded),
               ),
             if (widget.roomId == null &&
@@ -1149,44 +1153,44 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                 !_selectionMode)
               IconButton(
                 onPressed: _toggleTrash,
-                tooltip: '휴지통',
+                tooltip: AppText.localize(context, '휴지통'),
                 icon: const Icon(Icons.delete_outline_rounded),
               ),
             if (_trashMode)
               IconButton(
                 onPressed: _toggleTrash,
-                tooltip: '갤러리로 돌아가기',
+                tooltip: AppText.localize(context, '갤러리로 돌아가기'),
                 icon: const Icon(Icons.photo_library_outlined),
               ),
             if (!widget.selectionMode) ...[
               if (!_trashMode && !_selectionMode) ...[
                 PopupMenuButton<double>(
-                  tooltip: '사진 비율',
+                  tooltip: AppText.localize(context, '사진 비율'),
                   initialValue: _imageAspectRatio,
                   onSelected: _setImageAspectRatio,
                   icon: const Icon(Icons.aspect_ratio_rounded),
                   itemBuilder: (_) => const [
                     PopupMenuItem(
                       value: 0.75,
-                      child: Text('3:4 세로'),
+                      child: AppText('3:4 세로'),
                     ),
                     PopupMenuItem(
                       value: 1.3333333333,
-                      child: Text('4:3 가로'),
+                      child: AppText('4:3 가로'),
                     ),
                     PopupMenuItem(
                       value: 0.5625,
-                      child: Text('9:16 세로'),
+                      child: AppText('9:16 세로'),
                     ),
                     PopupMenuItem(
                       value: 1.7777777778,
-                      child: Text('16:9 가로'),
+                      child: AppText('16:9 가로'),
                     ),
                   ],
                 ),
                 IconButton(
                   onPressed: _uploading ? null : _uploadImage,
-                  tooltip: '사진 업로드',
+                  tooltip: AppText.localize(context, '사진 업로드'),
                   icon: _uploading
                       ? const SizedBox(
                           width: 20,
@@ -1197,19 +1201,19 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                 ),
                 IconButton(
                   onPressed: _createAlbum,
-                  tooltip: '앨범 추가',
+                  tooltip: AppText.localize(context, '앨범 추가'),
                   icon: const Icon(Icons.create_new_folder_outlined),
                 ),
                 IconButton(
                   onPressed: _manageCurrentAlbums,
-                  tooltip: '앨범 관리',
+                  tooltip: AppText.localize(context, '앨범 관리'),
                   icon: const Icon(Icons.folder_open_outlined),
                 ),
               ],
             ],
             IconButton(
               onPressed: _reload,
-              tooltip: '새로고침',
+              tooltip: AppText.localize(context, '새로고침'),
               icon: const Icon(Icons.refresh_rounded),
             ),
           ],
@@ -1218,7 +1222,8 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
           future: _gallery,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
-              return Center(child: Text('갤러리를 불러오지 못했습니다: ${snapshot.error}'));
+              return Center(
+                  child: AppText('갤러리를 불러오지 못했습니다: ${snapshot.error}'));
             }
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
@@ -1238,17 +1243,17 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                       segments: const [
                         ButtonSegment(
                           value: _GalleryView.all,
-                          label: Text('전체'),
+                          label: AppText('전체'),
                           icon: Icon(Icons.photo_library_outlined),
                         ),
                         ButtonSegment(
                           value: _GalleryView.rooms,
-                          label: Text('채팅방'),
+                          label: AppText('채팅방'),
                           icon: Icon(Icons.chat_bubble_outline),
                         ),
                         ButtonSegment(
                           value: _GalleryView.albums,
-                          label: Text('앨범'),
+                          label: AppText('앨범'),
                           icon: Icon(Icons.photo_album_outlined),
                         ),
                       ],
@@ -1260,7 +1265,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                 if (images.isEmpty)
                   Expanded(
                     child: Center(
-                      child: Text(
+                      child: AppText(
                         widget.selectionMode
                             ? '참고할 사진이 없습니다. 갤러리에 사진을 추가해 주세요.'
                             : _trashMode
@@ -1270,7 +1275,8 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                     ),
                   )
                 else if (_view == _GalleryView.albums && groups.isEmpty)
-                  const Expanded(child: Center(child: Text('표시할 앨범 사진이 없습니다.')))
+                  const Expanded(
+                      child: Center(child: AppText('표시할 앨범 사진이 없습니다.')))
                 else
                   Expanded(
                     child: CustomScrollView(
@@ -1395,7 +1401,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                                                           ),
                                                         ),
                                                         if (_trashMode)
-                                                          Text(
+                                                          AppText(
                                                             '삭제 예정: ${_dateLabel(image.deletedAt.add(const Duration(days: 7)))}',
                                                             maxLines: 1,
                                                             overflow:
@@ -1409,7 +1415,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                                                             ),
                                                           ),
                                                         if (!_trashMode)
-                                                          Text(
+                                                          AppText(
                                                             '${image.kind == 'generated' ? '생성' : '업로드'} · '
                                                             '${_dateLabel(image.createdAt)}',
                                                             maxLines: 1,
@@ -1433,7 +1439,10 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                                                                 visualDensity:
                                                                     VisualDensity
                                                                         .compact,
-                                                                tooltip: '복원',
+                                                                tooltip: AppText
+                                                                    .localize(
+                                                                        context,
+                                                                        '복원'),
                                                                 onPressed: () =>
                                                                     _restoreImage(
                                                                         image),
@@ -1449,8 +1458,10 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                                                                 visualDensity:
                                                                     VisualDensity
                                                                         .compact,
-                                                                tooltip:
-                                                                    '완전히 삭제',
+                                                                tooltip: AppText
+                                                                    .localize(
+                                                                        context,
+                                                                        '완전히 삭제'),
                                                                 onPressed: () =>
                                                                     _deleteForever(
                                                                         image),
@@ -1486,7 +1497,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                             child: Padding(
                               padding: const EdgeInsets.all(20),
                               child: Center(
-                                child: Text(
+                                child: AppText(
                                   '${previewImages.length}/${images.length}장 표시 중 · 아래로 스크롤하면 더 불러옵니다',
                                   textAlign: TextAlign.center,
                                 ),
@@ -1516,7 +1527,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                     children: [
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Text('${_selectedImageIds.length}장 선택'),
+                        child: AppText('${_selectedImageIds.length}장 선택'),
                       ),
                       TextButton.icon(
                         onPressed: () => _toggleSelectAll(_currentImages),
@@ -1527,7 +1538,7 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                               ? Icons.deselect_rounded
                               : Icons.select_all_rounded,
                         ),
-                        label: Text(
+                        label: AppText(
                           _currentImages.isNotEmpty &&
                                   _currentImages
                                       .every(_selectedImageIds.contains)
@@ -1545,26 +1556,26 @@ class _ChatGalleryScreenState extends State<ChatGalleryScreen> {
                               }
                             : null,
                         icon: const Icon(Icons.edit_outlined),
-                        label: const Text('제목 수정'),
+                        label: const AppText('제목 수정'),
                       ),
                       TextButton.icon(
                         onPressed: _selectedImageIds.isEmpty
                             ? null
                             : _moveSelectedToTrash,
                         icon: const Icon(Icons.delete_outline_rounded),
-                        label: const Text('휴지통'),
+                        label: const AppText('휴지통'),
                       ),
                       TextButton.icon(
                         onPressed: _draftNames.isEmpty
                             ? null
                             : () => _saveTitleChanges(),
                         icon: const Icon(Icons.save_outlined),
-                        label: const Text('저장'),
+                        label: const AppText('저장'),
                       ),
                       TextButton.icon(
                         onPressed: _confirmLeaveSelection,
                         icon: const Icon(Icons.close_rounded),
-                        label: const Text('나가기'),
+                        label: const AppText('나가기'),
                       ),
                     ],
                   ),

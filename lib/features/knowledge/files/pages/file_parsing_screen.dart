@@ -1,14 +1,17 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
+import 'package:langgry/core/permissions/permission_gate.dart';
+import 'package:langgry/core/permissions/permission_policy.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:uuid/uuid.dart';
 
 import 'package:langgry/features/knowledge/models/knowledge_node.dart';
+import 'package:langgry/features/knowledge/files/widgets/html_paste_dialog.dart';
 import 'package:langgry/features/knowledge/services/knowledge_database.dart';
+import 'package:langgry/features/knowledge/services/html_layout_recovery_service.dart';
 import 'package:langgry/features/knowledge/files/pages/html_preview_page.dart';
 
 enum _DuplicateFileAction { overwrite, rename, cancel }
@@ -16,9 +19,14 @@ enum _DuplicateFileAction { overwrite, rename, cancel }
 enum _FileAction { edit, delete }
 
 class FileParsingScreen extends StatefulWidget {
-  const FileParsingScreen({required this.store, super.key});
+  const FileParsingScreen({
+    required this.store,
+    this.recoverHtml,
+    super.key,
+  });
 
   final KnowledgeStore store;
+  final Future<String> Function(String html)? recoverHtml;
 
   @override
   State<FileParsingScreen> createState() => _FileParsingScreenState();
@@ -92,16 +100,21 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
     }
   }
 
-  Future<void> _pickAndParse() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['html', 'htm'],
-      withData: true,
+  Future<String?> _recoverHtml(String html) async {
+    if (!await requireFeatureAccess(context, PermissionFeatures.aiTools)) {
+      return null;
+    }
+    return widget.recoverHtml?.call(html) ??
+        HtmlLayoutRecoveryService().recover(html);
+  }
+
+  Future<void> _pasteAndSaveHtml() async {
+    final input = await showDialog<HtmlPasteInput>(
+      context: context,
+      builder: (_) => HtmlPasteDialog(recoverHtml: _recoverHtml),
     );
-    final bytes = result?.files.single.bytes;
-    if (bytes == null) return;
-    final file = result!.files.single;
-    var title = file.name;
+    if (input == null || !mounted) return;
+    var title = input.title;
     KnowledgeNode? overwriteTarget;
     while (true) {
       final duplicate = _files.cast<KnowledgeNode?>().firstWhere(
@@ -130,14 +143,13 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
       _fileName = title;
     });
     try {
-      final sourceHtml = utf8.decode(bytes);
       final now = DateTime.now();
       await widget.store.upsertFile(
         KnowledgeNode(
           id: overwriteTarget?.id ?? const Uuid().v4(),
           type: 'file',
           title: title,
-          content: sourceHtml,
+          content: input.html,
           createdAt: overwriteTarget?.createdAt ?? now,
           updatedAt: now,
           tags: overwriteTarget?.tags ?? const [],
@@ -148,17 +160,17 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
             'format': 'html',
             'category': category,
             'schemaVersion': '2',
+            'source': 'pasted',
+            'layoutRepaired': input.layoutRepaired.toString(),
           },
         ),
       );
       await _loadFiles();
       if (mounted) setState(() => _createdCount = 0);
-    } on FormatException {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('UTF-8로 인코딩된 HTML 파일만 가져올 수 있습니다.')),
-        );
-      }
+    } on FirebaseException catch (error) {
+      _showFileOperationError(error.message ?? error.code);
+    } on StateError catch (error) {
+      _showFileOperationError(error.message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -168,23 +180,23 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
     return showDialog<_DuplicateFileAction>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('같은 제목의 파일이 있습니다'),
-        content: Text('“$title” 파일을 어떻게 처리할까요?'),
+        title: const AppText('같은 제목의 파일이 있습니다'),
+        content: AppText('“$title” 파일이 이미 있습니다. 어떻게 처리할까요?'),
         actions: [
           TextButton(
             onPressed: () =>
                 Navigator.of(dialogContext).pop(_DuplicateFileAction.cancel),
-            child: const Text('업로드 취소'),
+            child: const AppText('취소'),
           ),
           TextButton(
             onPressed: () =>
                 Navigator.of(dialogContext).pop(_DuplicateFileAction.rename),
-            child: const Text('이름 바꿔서 업로드'),
+            child: const AppText('이름 바꾸기'),
           ),
           FilledButton(
             onPressed: () =>
                 Navigator.of(dialogContext).pop(_DuplicateFileAction.overwrite),
-            child: const Text('덮어쓰기'),
+            child: const AppText('덮어쓰기'),
           ),
         ],
       ),
@@ -197,13 +209,13 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
       return await showDialog<String>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('파일 제목 변경'),
+          title: const AppText('파일 제목 변경'),
           content: TextField(
             controller: controller,
             autofocus: true,
-            decoration: const InputDecoration(
-              labelText: '제목',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: AppText.localize(context, '제목'),
+              border: const OutlineInputBorder(),
             ),
             onSubmitted: (value) {
               final title = value.trim();
@@ -213,20 +225,20 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('취소'),
+              child: const AppText('취소'),
             ),
             FilledButton(
               onPressed: () {
                 final title = controller.text.trim();
                 if (title.isEmpty) {
                   ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(content: Text('제목을 입력해 주세요.')),
+                    const SnackBar(content: AppText('제목을 입력해 주세요.')),
                   );
                   return;
                 }
                 Navigator.of(dialogContext).pop(title);
               },
-              child: const Text('확인'),
+              child: const AppText('확인'),
             ),
           ],
         ),
@@ -241,36 +253,36 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
     return showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('파일 분류'),
+        title: const AppText('파일 분류'),
         content: SizedBox(
           width: 400,
           child: TextField(
             autofocus: true,
             onChanged: (value) => category = value,
-            decoration: const InputDecoration(
-              labelText: '분류명',
-              hintText: '예: 영어, 여행, 업무',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: AppText.localize(context, '분류명'),
+              hintText: AppText.localize(context, '예: 영어, 여행, 업무'),
+              border: const OutlineInputBorder(),
             ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('취소'),
+            child: const AppText('취소'),
           ),
           FilledButton(
             onPressed: () {
               final value = category.trim();
               if (value.isEmpty) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('분류를 입력해 주세요.')),
+                  const SnackBar(content: AppText('분류를 입력해 주세요.')),
                 );
                 return;
               }
               Navigator.of(dialogContext).pop(value);
             },
-            child: const Text('확인'),
+            child: const AppText('확인'),
           ),
         ],
       ),
@@ -285,12 +297,12 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.edit_rounded),
-              title: const Text('제목·분류 수정'),
+              title: const AppText('제목·분류 수정'),
               onTap: () => Navigator.of(sheetContext).pop(_FileAction.edit),
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline_rounded),
-              title: const Text('삭제'),
+              title: const AppText('삭제'),
               onTap: () => Navigator.of(sheetContext).pop(_FileAction.delete),
             ),
           ],
@@ -313,7 +325,7 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('파일 정보 수정'),
+          title: const AppText('파일 정보 수정'),
           content: SizedBox(
             width: 420,
             child: Column(
@@ -322,17 +334,17 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
                 TextField(
                   controller: titleController,
                   autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: '제목',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: AppText.localize(context, '제목'),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: categoryController,
-                  decoration: const InputDecoration(
-                    labelText: '분류',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: AppText.localize(context, '분류'),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
               ],
@@ -341,20 +353,20 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('취소'),
+              child: const AppText('취소'),
             ),
             FilledButton(
               onPressed: () {
                 if (titleController.text.trim().isEmpty ||
                     categoryController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(content: Text('제목과 분류를 입력해 주세요.')),
+                    const SnackBar(content: AppText('제목과 분류를 입력해 주세요.')),
                   );
                   return;
                 }
                 Navigator.of(dialogContext).pop(true);
               },
-              child: const Text('저장'),
+              child: const AppText('저장'),
             ),
           ],
         ),
@@ -384,16 +396,16 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('파일 삭제'),
-        content: Text('“${file.title}” 파일을 삭제할까요?'),
+        title: const AppText('파일 삭제'),
+        content: AppText('“${file.title}” 파일을 삭제할까요?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('취소'),
+            child: const AppText('취소'),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('삭제'),
+            child: const AppText('삭제'),
           ),
         ],
       ),
@@ -412,7 +424,7 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
   void _showFileOperationError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('파일 작업에 실패했습니다: $message')),
+      SnackBar(content: AppText('파일 작업에 실패했습니다: $message')),
     );
   }
 
@@ -466,7 +478,7 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
       _selectedCategory = '전체';
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('파일')),
+      appBar: AppBar(title: const AppText('파일')),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -475,22 +487,22 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
             child: Row(
               children: [
                 const Expanded(
-                  child: Text(
+                  child: AppText(
                     '저장된 메모 파일',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
                 IconButton(
-                  tooltip: '파일 목록 새로고침',
+                  tooltip: AppText.localize(context, '파일 목록 새로고침'),
                   onPressed: _loadFiles,
                   icon: const Icon(Icons.refresh_rounded),
                 ),
                 Flexible(
                   child: FilledButton.icon(
-                    onPressed: _busy ? null : _pickAndParse,
-                    icon: const Icon(Icons.upload_file_rounded),
-                    label: Text(
-                      _busy ? '가져오는 중...' : 'HTML 가져오기',
+                    onPressed: _busy ? null : _pasteAndSaveHtml,
+                    icon: const Icon(Icons.edit_note_rounded),
+                    label: AppText(
+                      _busy ? '저장 중...' : 'HTML 붙여넣기',
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -506,14 +518,14 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
                 _displayLimit = 20;
               }),
               decoration: InputDecoration(
-                hintText: '파일 제목, 내용, 분류 검색',
+                hintText: AppText.localize(context, '파일 제목, 내용, 분류 검색'),
                 prefixIcon: const Icon(Icons.search_rounded),
                 isDense: true,
                 border: const OutlineInputBorder(),
                 suffixIcon: _searchQuery.isEmpty
                     ? null
                     : IconButton(
-                        tooltip: '검색 지우기',
+                        tooltip: AppText.localize(context, '검색 지우기'),
                         onPressed: () => setState(() {
                           _searchQuery = '';
                           _displayLimit = 20;
@@ -573,7 +585,7 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
           if (_createdCount > 0 || _fileName != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
+              child: AppText(
                 _createdCount > 0
                     ? '$_fileName · $_createdCount개의 메모를 생성했습니다.'
                     : '$_fileName · 파일만 저장했습니다. 메모는 생성하지 않았습니다.',
@@ -587,12 +599,12 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('파일 목록을 불러오지 못했습니다.\n$_loadError'),
+                          AppText('파일 목록을 불러오지 못했습니다.\n$_loadError'),
                           const SizedBox(height: 12),
                           FilledButton.icon(
                             onPressed: _loadFiles,
                             icon: const Icon(Icons.refresh_rounded),
-                            label: const Text('다시 시도'),
+                            label: const AppText('다시 시도'),
                           ),
                         ],
                       ),
@@ -602,8 +614,8 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
                     ? const Center(child: CircularProgressIndicator())
                     : visibleFiles.isEmpty
                         ? const Center(
-                            child: Text(
-                                '조건에 맞는 파일이 없습니다. 파일을 만들거나 HTML을 가져와 보세요.'))
+                            child: AppText(
+                                '조건에 맞는 파일이 없습니다. 파일을 만들거나 HTML 내용을 붙여넣어 보세요.'))
                         : ListView.separated(
                             controller: _fileScrollController,
                             padding: const EdgeInsets.all(12),
@@ -620,7 +632,7 @@ class _FileParsingScreenState extends State<FileParsingScreen> {
                                   leading:
                                       const Icon(Icons.description_rounded),
                                   title: Text(file.title),
-                                  subtitle: Text(
+                                  subtitle: AppText(
                                     '${fileCategoryOf(file)} · 대주제: ${majorTopics.join(' · ')}',
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,

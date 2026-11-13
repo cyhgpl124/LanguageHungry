@@ -21,7 +21,11 @@ class KnowledgeNode {
   final List<double>? embedding;
   final Map<String, String> metadata;
 
-  String get mode => metadata['mode'] ?? type;
+  String get mode =>
+      metadata['mode'] ??
+      metadata['componentKind'] ??
+      metadata['documentKind'] ??
+      type;
 
   KnowledgeNode copyWith({
     String? title,

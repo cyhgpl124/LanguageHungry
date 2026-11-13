@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/localization/language_display.dart';
@@ -47,13 +48,13 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
   Future<void> _submit() async {
     if (_nativeLanguages.isEmpty || _learningLanguages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('두 언어를 모두 선택해 주세요.')),
+        const SnackBar(content: AppText('두 언어를 모두 선택해 주세요.')),
       );
       return;
     }
     if (_nativeLanguages.intersection(_learningLanguages).isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('서로 다른 언어를 선택해 주세요.')),
+        const SnackBar(content: AppText('서로 다른 언어를 선택해 주세요.')),
       );
       return;
     }
@@ -91,7 +92,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('모국어 (여러 개 선택 가능)'),
+          const AppText('모국어 (여러 개 선택 가능)'),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -99,7 +100,11 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
             children: LanguageDisplay.all.map((language) {
               return FilterChip(
                 avatar: Text(language.flag),
-                label: Text(language.nativeName),
+                label: Text(
+                  language.localizedName(
+                    Localizations.localeOf(context).languageCode,
+                  ),
+                ),
                 selected: _nativeLanguages.contains(language.storageName),
                 onSelected: (selected) => setState(() {
                   selected
@@ -110,7 +115,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
             }).toList(),
           ),
           const SizedBox(height: 16),
-          const Text('배우고자 하는 언어 (여러 개 선택 가능)'),
+          const AppText('배우고자 하는 언어 (여러 개 선택 가능)'),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -118,7 +123,11 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
             children: LanguageDisplay.all.map((language) {
               return FilterChip(
                 avatar: Text(language.flag),
-                label: Text(language.nativeName),
+                label: Text(
+                  language.localizedName(
+                    Localizations.localeOf(context).languageCode,
+                  ),
+                ),
                 selected: _learningLanguages.contains(language.storageName),
                 onSelected: (selected) => setState(() {
                   selected
@@ -133,7 +142,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
             onPressed: _saving ? null : _submit,
             child: _saving
                 ? const CircularProgressIndicator()
-                : const Text('시작하기'),
+                : const AppText('시작하기'),
           ),
         ],
       ),

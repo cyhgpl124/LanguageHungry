@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:langgry/core/localization/app_strings.dart';
+import 'package:langgry/core/localization/language_display.dart';
 import 'package:langgry/features/auth/session/blocs/auth_bloc.dart';
 import 'package:langgry/features/auth/session/blocs/auth_event.dart';
 import 'package:langgry/features/auth/session/services/auth_repository.dart';
@@ -11,11 +13,15 @@ class MyPage extends StatefulWidget {
   const MyPage({
     required this.onLanguageSettings,
     required this.onEditProfile,
+    required this.onPermissionSettings,
+    required this.showPermissionSettings,
     super.key,
   });
 
   final VoidCallback onLanguageSettings;
   final Future<void> Function() onEditProfile;
+  final VoidCallback onPermissionSettings;
+  final bool showPermissionSettings;
 
   @override
   State<MyPage> createState() => _MyPageState();
@@ -42,7 +48,7 @@ class _MyPageState extends State<MyPage> {
     return Scaffold(
       backgroundColor: const Color(0xfff5f7fb),
       appBar: AppBar(
-        title: const Text('마이페이지'),
+        title: const AppText('마이페이지'),
         backgroundColor: const Color(0xffeff2ff),
         actions: [
           IconButton(
@@ -76,6 +82,8 @@ class _MyPageState extends State<MyPage> {
           return _MyPageContent(
             data: snapshot.data!,
             onLanguageSettings: widget.onLanguageSettings,
+            onPermissionSettings: widget.onPermissionSettings,
+            showPermissionSettings: widget.showPermissionSettings,
             onEditProfile: () async {
               await widget.onEditProfile();
               if (mounted) _reload();
@@ -91,11 +99,15 @@ class _MyPageContent extends StatelessWidget {
   const _MyPageContent({
     required this.data,
     required this.onLanguageSettings,
+    required this.onPermissionSettings,
+    required this.showPermissionSettings,
     required this.onEditProfile,
   });
 
   final HomeData data;
   final VoidCallback onLanguageSettings;
+  final VoidCallback onPermissionSettings;
+  final bool showPermissionSettings;
   final Future<void> Function() onEditProfile;
 
   @override
@@ -135,6 +147,17 @@ class _MyPageContent extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _ProfileCard(data: data, onEditProfile: onEditProfile),
+                  if (showPermissionSettings) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: OutlinedButton.icon(
+                        onPressed: onPermissionSettings,
+                        icon: const Icon(Icons.admin_panel_settings_outlined),
+                        label: const AppText('권한 설정'),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   _LanguageCard(
                     data: data,
@@ -172,7 +195,7 @@ class _MyPageContent extends StatelessWidget {
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text(
+                          child: AppText(
                             '12,500 코인',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -186,7 +209,7 @@ class _MyPageContent extends StatelessWidget {
                           width: 76,
                           child: FilledButton.tonal(
                             onPressed: () => _showComingSoon(context),
-                            child: const Text('충전'),
+                            child: const AppText('충전'),
                           ),
                         ),
                       ],
@@ -266,7 +289,7 @@ class _MyPageContent extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: () => onEditProfile(),
                       icon: const Icon(Icons.edit_note_rounded),
-                      label: const Text('회원정보 수정'),
+                      label: const AppText('회원정보 수정'),
                     ),
                   ),
                 ],
@@ -280,7 +303,7 @@ class _MyPageContent extends StatelessWidget {
 
   static void _showComingSoon(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('이 기능을 준비하고 있어요.')),
+      const SnackBar(content: AppText('이 기능을 준비하고 있어요.')),
     );
   }
 }
@@ -349,7 +372,7 @@ class _ProfileCard extends StatelessWidget {
                 const _StatusChip(label: '비기너'),
                 TextButton(
                   onPressed: () => onEditProfile(),
-                  child: const Text('회원정보 수정'),
+                  child: const AppText('회원정보 수정'),
                 ),
               ],
             ),
@@ -380,6 +403,14 @@ class _LanguageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localeCode = Localizations.localeOf(context).languageCode;
+    final nativeLanguage = LanguageDisplay.fromStorageName(
+      data.activeNativeLanguage ?? data.nativeLanguages.firstOrNull ?? '한국어',
+    ).localizedName(localeCode);
+    final learningLanguage = LanguageDisplay.fromStorageName(
+      data.activeLearningLanguage ?? data.learningLanguages.firstOrNull ?? '영어',
+    ).localizedName(localeCode);
+
     return Card(
       color: const Color(0xfffffdfa),
       child: InkWell(
@@ -392,10 +423,8 @@ class _LanguageCard extends StatelessWidget {
               const Icon(Icons.translate_rounded),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  '${data.activeNativeLanguage ?? data.nativeLanguages.firstOrNull ?? '한국어'}'
-                  ' → '
-                  '${data.activeLearningLanguage ?? data.learningLanguages.firstOrNull ?? '영어'}',
+                child: AppText(
+                  '$nativeLanguage → $learningLanguage',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w700),
@@ -428,8 +457,8 @@ class _TokenCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('이번 달 사용량'),
-              Text('$used / $total',
+              AppText('이번 달 사용량'),
+              AppText('$used / $total',
                   style: TextStyle(fontWeight: FontWeight.bold)),
             ],
           ),
@@ -439,7 +468,10 @@ class _TokenCard extends StatelessWidget {
             child: LinearProgressIndicator(value: used / total, minHeight: 9),
           ),
           SizedBox(height: 8),
-          Text('매월 1일에 토큰이 충전됩니다.', style: TextStyle(fontSize: 12)),
+          AppText(
+            '매월 1일에 토큰이 충전됩니다.',
+            style: TextStyle(fontSize: 12),
+          ),
         ],
       ),
     );
@@ -473,7 +505,7 @@ class _SectionCard extends StatelessWidget {
                 Icon(icon, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(title,
+                  child: AppText(title,
                       style: const TextStyle(fontWeight: FontWeight.w800)),
                 ),
                 if (trailing != null) trailing!,
@@ -519,8 +551,8 @@ class _StatCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  Text(value,
+                  AppText(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  AppText(value,
                       style: const TextStyle(
                           fontSize: 18, fontWeight: FontWeight.w800)),
                 ],
@@ -553,7 +585,7 @@ class _Badge extends StatelessWidget {
         children: [
           Icon(icon, color: Colors.amber.shade700),
           const SizedBox(height: 4),
-          Text(label,
+          AppText(label,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 11)),
         ],
@@ -594,9 +626,9 @@ class _PlanTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+            AppText(title, style: const TextStyle(fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
-            Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+            AppText(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
       ),
@@ -612,7 +644,7 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Chip(
-      label: Text(label),
+      label: AppText(label),
       visualDensity: VisualDensity.compact,
       backgroundColor: const Color(0xffe0e6f9),
       labelStyle: const TextStyle(
@@ -639,7 +671,7 @@ class _ActionTile extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Icon(icon),
-      title: Text(title),
+      title: AppText(title),
       trailing: const Icon(Icons.chevron_right_rounded),
       onTap: onTap,
     );

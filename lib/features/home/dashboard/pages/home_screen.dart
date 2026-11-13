@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -59,17 +60,20 @@ class _HomeScreenState extends State<HomeScreen> {
           _homeData = context.read<AuthRepository>().loadHomeData();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('프로필 사진을 변경했습니다.')),
+          const SnackBar(content: AppText('프로필 사진을 변경했습니다.')),
         );
       }
     } catch (error) {
       if (mounted) {
         final message = error is FirebaseException
-            ? '프로필 사진 업로드 실패 (${error.code}): '
-                '${error.message ?? 'Storage 규칙과 App Check를 확인해 주세요.'}'
-            : '프로필 사진 업로드 실패: $error';
+            ? AppText.localize(
+                context,
+                '프로필 사진 업로드 실패 (${error.code}): '
+                '${error.message ?? AppText.localize(context, 'Storage 규칙과 App Check를 확인해 주세요.')}',
+              )
+            : AppText.localize(context, '프로필 사진 업로드 실패: $error');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
+          SnackBar(content: AppText(message)),
         );
       }
     }
@@ -80,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final strings = AppStrings.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: const AppText(
           'LANGGRY',
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
@@ -320,12 +324,12 @@ class _ProfileCard extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
             ),
-            Text(
+            AppText(
               '@${data.username ?? data.email.split('@').first}',
               style: const TextStyle(color: Colors.black54),
             ),
             const SizedBox(height: 10),
-            Text('$native  →  $learning'),
+            AppText('$native  →  $learning'),
             const SizedBox(height: 14),
             Wrap(
               spacing: 8,
@@ -414,7 +418,7 @@ class _StatsCard extends StatelessWidget {
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('오늘 출석을 기록했어요.')),
+                const SnackBar(content: AppText('오늘 출석을 기록했어요.')),
               ),
               icon: const Icon(Icons.calendar_month_rounded),
               label: Text(AppStrings.of(context).attendanceCheck),

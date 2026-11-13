@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:langgry/features/chat/models/chat_settings.dart';
 import 'package:uuid/uuid.dart';
@@ -155,7 +156,7 @@ class _ChatSetupScreenState extends State<ChatSetupScreen> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('AI 프로필을 저장하지 못했습니다: $error')),
+          SnackBar(content: AppText('AI 프로필을 저장하지 못했습니다: $error')),
         );
       }
     } finally {
@@ -221,15 +222,17 @@ class _ChatSetupScreenState extends State<ChatSetupScreen> {
               children: [
                 TextField(
                   controller: _name,
-                  decoration: const InputDecoration(labelText: 'AI 이름'),
+                  decoration: InputDecoration(
+                      labelText: AppText.localize(context, 'AI 이름')),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _traits,
                   maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'AI 기본 특성 (자아/성격 설정)',
-                    hintText: '예: 친근하고 경청하는 태도, 세심한 교정',
+                  decoration: InputDecoration(
+                    labelText: AppText.localize(context, 'AI 기본 특성 (자아/성격 설정)'),
+                    hintText:
+                        AppText.localize(context, '예: 친근하고 경청하는 태도, 세심한 교정'),
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -237,18 +240,19 @@ class _ChatSetupScreenState extends State<ChatSetupScreen> {
                 TextField(
                   controller: _role,
                   maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'AI 역할',
+                  decoration: InputDecoration(
+                    labelText: AppText.localize(context, 'AI 역할'),
                     border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   initialValue: _tone,
-                  decoration: const InputDecoration(labelText: 'AI 말투'),
+                  decoration: InputDecoration(
+                      labelText: AppText.localize(context, 'AI 말투')),
                   items: const ['친근하게', '차분하게', '선생님처럼', '간결하게']
                       .map((tone) =>
-                          DropdownMenuItem(value: tone, child: Text(tone)))
+                          DropdownMenuItem(value: tone, child: AppText(tone)))
                       .toList(),
                   onChanged: (value) => setState(() => _tone = value ?? _tone),
                 ),
@@ -266,7 +270,7 @@ class _ChatSetupScreenState extends State<ChatSetupScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.check_rounded),
-            label: Text(
+            label: AppText(
               _saving
                   ? '이미지 저장 중...'
                   : widget.isRoomCreation
@@ -290,7 +294,8 @@ class _ChatSetupScreenState extends State<ChatSetupScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+              AppText(title,
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 10),
               child,
             ],

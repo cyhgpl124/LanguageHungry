@@ -2,59 +2,103 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSuperuser() {
+      return request.auth != null
+             && request.auth.token.email == 'cyhgpl@gmail.com';
+    }
+
+    function hasFeature(userId, featureKey) {
+      let configPath = /databases/$(database)/documents/appConfig/permissions;
+      let profile = get(/databases/$(database)/documents/users/$(userId)).data;
+      let tier = profile.get('permissionTier', 'free');
+      let config = exists(configPath) ? get(configPath).data.get('matrix', {}) : {};
+      let feature = config.get(featureKey, {});
+      return isSuperuser() || feature.get(tier, true) == true;
+    }
+
+    function hasKnowledgeFeature(userId) {
+      return hasFeature(userId, 'memos')
+             || hasFeature(userId, 'dynamicLists')
+             || hasFeature(userId, 'plots');
+    }
+
+    match /appConfig/permissions {
+      allow read: if request.auth != null;
+      allow write: if isSuperuser();
+    }
+
     match /users/{userId}/knowledge/{collectionName}/items/{documentId} {
       allow read, write: if request.auth != null
-                         && request.auth.uid == userId;
+                         && request.auth.uid == userId
+                         && (collectionName == 'files'
+                                 ? hasFeature(userId, 'fileImport')
+                                 : hasKnowledgeFeature(userId));
     }
 
     match /users/{userId}/knowledge/files {
       allow read, write: if request.auth != null
-                         && request.auth.uid == userId;
+                         && request.auth.uid == userId
+                         && hasFeature(userId, 'fileImport');
     }
 
     match /users/{userId}/knowledge/files/categories/{categoryId} {
       allow read, write: if request.auth != null
-                         && request.auth.uid == userId;
+                         && request.auth.uid == userId
+                         && hasFeature(userId, 'fileImport');
 
       match /items/{fileId} {
         allow read, write: if request.auth != null
-                           && request.auth.uid == userId;
+                           && request.auth.uid == userId
+                           && hasFeature(userId, 'fileImport');
       }
     }
 
     match /users/{userId}/chatRooms/{roomId} {
       allow read, write: if request.auth != null
-                         && request.auth.uid == userId;
+                         && request.auth.uid == userId
+                         && hasFeature(userId, 'chatRoom');
 
       match /messages/{messageId} {
         allow read, write: if request.auth != null
-                           && request.auth.uid == userId;
+                           && request.auth.uid == userId
+                           && hasFeature(userId, 'chatRoom');
       }
 
       match /galleryImages/{imageId} {
         allow read, write: if request.auth != null
-                           && request.auth.uid == userId;
+                           && request.auth.uid == userId
+                           && hasFeature(userId, 'chatGallery');
       }
     }
 
     match /users/{userId}/chatGalleryImages/{imageId} {
       allow read, write: if request.auth != null
-                         && request.auth.uid == userId;
+                         && request.auth.uid == userId
+                         && hasFeature(userId, 'chatGallery');
     }
 
     match /users/{userId}/chatGalleryAlbums/{albumId} {
       allow read, write: if request.auth != null
-                         && request.auth.uid == userId;
+                         && request.auth.uid == userId
+                         && hasFeature(userId, 'chatGallery');
     }
 
     match /users/{userId}/chatFriends/{friendId} {
       allow read, write: if request.auth != null
-                         && request.auth.uid == userId;
+                         && request.auth.uid == userId
+                         && hasFeature(userId, 'chat');
     }
 
     match /users/{userId} {
-      allow read, write: if request.auth != null
-                         && request.auth.uid == userId;
+      allow read, delete: if request.auth != null
+                          && request.auth.uid == userId;
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && !request.resource.data.keys().hasAny(['permissionTier']);
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+                    && !request.resource.data.diff(resource.data)
+                        .affectedKeys().hasAny(['permissionTier']);
     }
   }
 }

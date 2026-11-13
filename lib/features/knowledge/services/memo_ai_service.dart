@@ -29,25 +29,60 @@ class MemoTopic {
   final String content;
 }
 
+class MemoAnalysisOptions {
+  const MemoAnalysisOptions({
+    this.suggestTags = true,
+    this.splitTopics = true,
+    this.detectLanguage = true,
+  });
+
+  final bool suggestTags;
+  final bool splitTopics;
+  final bool detectLanguage;
+
+  bool get usesAi => suggestTags || splitTopics || detectLanguage;
+
+  MemoAnalysisOptions copyWith({
+    bool? suggestTags,
+    bool? splitTopics,
+    bool? detectLanguage,
+  }) =>
+      MemoAnalysisOptions(
+        suggestTags: suggestTags ?? this.suggestTags,
+        splitTopics: splitTopics ?? this.splitTopics,
+        detectLanguage: detectLanguage ?? this.detectLanguage,
+      );
+}
+
 class MemoAiService {
-  MemoAiService({GenerativeModel? model})
-      : _model = model ??
-            FirebaseAI.googleAI().generativeModel(
-              model: 'gemini-3.6-flash',
-            );
+  MemoAiService({GenerativeModel? model}) : _modelOverride = model;
 
-  final GenerativeModel _model;
+  final GenerativeModel? _modelOverride;
+  late final GenerativeModel _model = _modelOverride ??
+      FirebaseAI.googleAI().generativeModel(
+        model: 'gemini-3.6-flash',
+      );
 
-  Future<MemoAnalysis> analyze(String title, String content) async {
+  Future<MemoAnalysis> analyze(
+    String title,
+    String content, {
+    MemoAnalysisOptions options = const MemoAnalysisOptions(),
+  }) async {
     final fallback = _fallback(title, content);
+    if (!options.usesAi) {
+      return _applyOptions(fallback, title, content, options);
+    }
     try {
       final response = await _model.generateContent([
         Content.text('''
-Analyze this memo. Detect its language, extract concise tags and split its
-distinct paragraph-level topics. Return JSON only:
+Analyze this memo and perform only these requested tasks:
+${options.detectLanguage ? '- detect its language' : ''}
+${options.suggestTags ? '- extract concise tags' : ''}
+${options.splitTopics ? '- split its distinct topics' : ''}
+Return JSON only:
 {"language":"Korean","tags":["short tag"],"topics":[{"title":"short topic","summary":"brief summary","content":"topic details"}]}
 Use one topic per distinct subject, and preserve the source language in topic
-content. Keep topic titles concise.
+content. Keep topic titles concise. Leave unrequested fields empty.
 Title: $title
 Content: $content
 '''),
@@ -83,16 +118,46 @@ Content: $content
           .where(
               (topic) => topic.content.isNotEmpty || topic.summary.isNotEmpty)
           .toList();
-      return MemoAnalysis(
-        tags: tags.isEmpty ? fallback.tags : tags,
-        embedding: _embedding('$title $content'),
-        language: _normalizeLanguage(data['language'] as String?) ??
-            fallback.language,
-        topics: topics.isEmpty ? fallback.topics : topics,
+      return _applyOptions(
+        MemoAnalysis(
+          tags: tags.isEmpty ? fallback.tags : tags,
+          embedding: _embedding('$title $content'),
+          language: _normalizeLanguage(data['language'] as String?) ??
+              fallback.language,
+          topics: topics.isEmpty ? fallback.topics : topics,
+        ),
+        title,
+        content,
+        options,
       );
     } catch (_) {
-      return fallback;
+      return _applyOptions(fallback, title, content, options);
     }
+  }
+
+  MemoAnalysis _applyOptions(
+    MemoAnalysis analysis,
+    String title,
+    String content,
+    MemoAnalysisOptions options,
+  ) {
+    final trimmedContent = content.trim();
+    return MemoAnalysis(
+      tags: options.suggestTags ? analysis.tags : const [],
+      embedding: analysis.embedding,
+      language: options.detectLanguage
+          ? analysis.language
+          : detectMemoLanguage('$title $content'),
+      topics: options.splitTopics || trimmedContent.isEmpty
+          ? analysis.topics
+          : [
+              MemoTopic(
+                title: title,
+                summary: trimmedContent,
+                content: trimmedContent,
+              ),
+            ],
+    );
   }
 
   MemoAnalysis _fallback(String title, String content) {

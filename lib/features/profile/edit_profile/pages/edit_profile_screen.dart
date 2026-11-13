@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -83,14 +84,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('회원정보를 저장했습니다.')),
+          const SnackBar(content: AppText('회원정보를 저장했습니다.')),
         );
         Navigator.of(context).pop(true);
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('저장하지 못했습니다: $error')),
+          SnackBar(content: AppText('저장하지 못했습니다: $error')),
         );
       }
     } finally {
@@ -103,12 +104,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xfff5f7fb),
       appBar: AppBar(
-        title: const Text('회원정보 수정'),
+        title: const AppText('회원정보 수정'),
         backgroundColor: const Color(0xffeff2ff),
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
-            child: const Text('저장하기'),
+            child: const AppText('저장하기'),
           ),
         ],
       ),
@@ -120,7 +121,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           }
           if (snapshot.hasError) {
             return Center(
-              child: Text('프로필을 불러오지 못했습니다: ${snapshot.error}'),
+              child: AppText('프로필을 불러오지 못했습니다: ${snapshot.error}'),
             );
           }
           return LayoutBuilder(
@@ -176,8 +177,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             color: const Color(0xfffffdfa),
                             child: ListTile(
                               leading: const Icon(Icons.lock_reset_rounded),
-                              title: const Text('비밀번호 변경'),
-                              subtitle: const Text(
+                              title: const AppText('비밀번호 변경'),
+                              subtitle: const AppText(
                                 '가입한 이메일로 비밀번호 변경 링크를 보냅니다.',
                               ),
                               trailing: const Icon(Icons.chevron_right_rounded),
@@ -187,7 +188,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           const SizedBox(height: 16),
                           FilledButton(
                             onPressed: _saving ? null : _save,
-                            child: Text(_saving ? '저장 중...' : '저장하기'),
+                            child: AppText(
+                              _saving ? '저장 중...' : '저장하기',
+                            ),
                           ),
                           const SizedBox(height: 20),
                           Align(
@@ -203,7 +206,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 minimumSize: const Size(0, 32),
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
-                              child: const Text(
+                              child: const AppText(
                                 '회원탈퇴',
                                 style: TextStyle(fontSize: 12),
                               ),
@@ -240,12 +243,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       await context.read<AuthRepository>().sendPasswordResetEmail(_email);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$_email 주소로 비밀번호 변경 링크를 보냈습니다.')),
+        SnackBar(content: AppText('$_email 주소로 비밀번호 변경 링크를 보냈습니다.')),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('비밀번호 변경 메일을 보내지 못했습니다: $error')),
+        SnackBar(content: AppText('비밀번호 변경 메일을 보내지 못했습니다: $error')),
       );
     }
   }
@@ -254,21 +257,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('회원탈퇴'),
-        content: const Text(
+        title: const AppText('회원탈퇴'),
+        content: const AppText(
           '계정을 삭제하면 프로필과 저장된 정보가 삭제됩니다.\n정말 탈퇴하시겠습니까?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('취소'),
+            child: const AppText('취소'),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: FilledButton.styleFrom(
               backgroundColor: Colors.red.shade700,
             ),
-            child: const Text('탈퇴하기'),
+            child: const AppText('탈퇴하기'),
           ),
         ],
       ),
@@ -286,7 +289,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
+          content: AppText(
             '회원탈퇴에 실패했습니다. 다시 로그인한 뒤 시도해 주세요: $error',
           ),
         ),
@@ -310,12 +313,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         keyboardType: keyboardType,
         validator: required
             ? (value) => value == null || value.trim().isEmpty
-                ? '$label을(를) 입력하세요.'
+                ? AppText.localize(context, '$label을(를) 입력하세요.')
                 : null
             : null,
         decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
+          labelText: AppText.localize(context, label),
+          hintText: AppText.localize(context, hint),
           filled: true,
           fillColor: const Color(0xfff4f5f8),
           border: OutlineInputBorder(
@@ -359,7 +362,7 @@ class _AvatarEditor extends StatelessWidget {
         TextButton.icon(
           onPressed: onTap,
           icon: const Icon(Icons.camera_alt_outlined),
-          label: const Text('프로필 사진 변경'),
+          label: const AppText('프로필 사진 변경'),
         ),
       ],
     );

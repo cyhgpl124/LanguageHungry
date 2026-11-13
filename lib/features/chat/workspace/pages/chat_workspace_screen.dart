@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:langgry/core/firebase/firestore_database.dart';
+import 'package:langgry/core/permissions/permission_gate.dart';
+import 'package:langgry/core/permissions/permission_policy.dart';
 import 'package:langgry/features/chat/models/chat_room.dart';
 import 'package:langgry/features/chat/models/chat_settings.dart';
 import 'package:langgry/features/chat/models/friend.dart';
@@ -93,7 +96,7 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
       } catch (error) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('AI 친구 목록을 불러오지 못했습니다: $error')),
+            SnackBar(content: AppText('AI 친구 목록을 불러오지 못했습니다: $error')),
           );
         }
       }
@@ -149,7 +152,7 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
       } catch (error) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('채팅방을 불러오지 못했습니다: $error')),
+            SnackBar(content: AppText('채팅방을 불러오지 못했습니다: $error')),
           );
         }
       }
@@ -177,18 +180,22 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
   }
 
   Future<void> _createChat() async {
+    if (!await requireFeatureAccess(context, PermissionFeatures.chatSetup)) {
+      return;
+    }
+    if (!mounted) return;
     final visibleFriends = _friends.where((friend) => !friend.isHidden).toList()
       ..sort((left, right) => left.name.compareTo(right.name));
     if (visibleFriends.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('채팅할 친구가 없습니다. 친구 목록에 먼저 추가해 주세요.')),
+        const SnackBar(content: AppText('채팅할 친구가 없습니다. 친구 목록에 먼저 추가해 주세요.')),
       );
       return;
     }
     final selectedFriend = await showDialog<Friend>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('대화할 친구 선택'),
+        title: const AppText('대화할 친구 선택'),
         content: SizedBox(
           width: 420,
           height: 360,
@@ -216,7 +223,7 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('취소'),
+            child: const AppText('취소'),
           ),
         ],
       ),
@@ -266,6 +273,10 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
   }
 
   Future<void> _addAiProfile() async {
+    if (!await requireFeatureAccess(context, PermissionFeatures.chatSetup)) {
+      return;
+    }
+    if (!mounted) return;
     final settings = await Navigator.of(context).push<ChatSettings>(
       MaterialPageRoute(builder: (_) => const ChatSetupScreen()),
     );
@@ -274,7 +285,7 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인 후 AI 친구를 추가할 수 있습니다.')),
+        const SnackBar(content: AppText('로그인 후 AI 친구를 추가할 수 있습니다.')),
       );
       return;
     }
@@ -299,7 +310,7 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('AI 친구를 저장하지 못했습니다: $error')),
+          SnackBar(content: AppText('AI 친구를 저장하지 못했습니다: $error')),
         );
       }
       return;
@@ -308,7 +319,7 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
     if (!mounted) return;
     setState(() => _friends.add(friend));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${friend.name} AI 친구를 추가했습니다.')),
+      SnackBar(content: AppText('${friend.name} AI 친구를 추가했습니다.')),
     );
   }
 
@@ -320,7 +331,7 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인 후 채팅방을 만들 수 있습니다.')),
+        const SnackBar(content: AppText('로그인 후 채팅방을 만들 수 있습니다.')),
       );
       return;
     }
@@ -358,22 +369,29 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('채팅방 정보를 저장하지 못했습니다: $error')),
+          SnackBar(content: AppText('채팅방 정보를 저장하지 못했습니다: $error')),
         );
       }
     }
   }
 
   Future<void> _openRoom(ChatRoom room) async {
+    if (!await requireFeatureAccess(context, PermissionFeatures.chatRoom)) {
+      return;
+    }
+    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ChatRoomScreen(
-          room: room,
-          store: widget.store,
-          friends: _friends.where((friend) => !friend.isDeleted).toList(),
-          onChanged: () => _saveRoom(room),
-          onAiSettingsChanged: (settings) =>
-              _saveAiFriendSettings(room, settings),
+        builder: (_) => PermissionGate(
+          feature: PermissionFeatures.chatRoom,
+          child: ChatRoomScreen(
+            room: room,
+            store: widget.store,
+            friends: _friends.where((friend) => !friend.isDeleted).toList(),
+            onChanged: () => _saveRoom(room),
+            onAiSettingsChanged: (settings) =>
+                _saveAiFriendSettings(room, settings),
+          ),
         ),
       ),
     );
@@ -396,7 +414,8 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
     if (user == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('로그인된 사용자가 없어 AI 친구 설정을 저장할 수 없습니다.')),
+          const SnackBar(
+              content: AppText('로그인된 사용자가 없어 AI 친구 설정을 저장할 수 없습니다.')),
         );
       }
       return;
@@ -425,7 +444,7 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('AI 친구 설정을 저장하지 못했습니다: $error')),
+          SnackBar(content: AppText('AI 친구 설정을 저장하지 못했습니다: $error')),
         );
       }
       return;
@@ -514,7 +533,7 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
+        content: AppText(
           '${friend.name} 친구와 1:1 채팅방 ${matchingRooms.length}개를 삭제했습니다.',
         ),
       ),
@@ -637,21 +656,21 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('친구 추가'),
+        title: const AppText('친구 추가'),
         content: SizedBox(
           width: 400,
           child: TextField(
             controller: controller,
-            decoration: const InputDecoration(
-              labelText: '친구 아이디 또는 이메일',
-              hintText: '예: friend@example.com',
+            decoration: InputDecoration(
+              labelText: AppText.localize(context, '친구 아이디 또는 이메일'),
+              hintText: AppText.localize(context, '예: friend@example.com'),
             ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('취소'),
+            child: const AppText('취소'),
           ),
           FilledButton(
             onPressed: () {
@@ -668,12 +687,12 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
                   );
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('$text 님을 친구로 추가했습니다.')),
+                  SnackBar(content: AppText('$text 님을 친구로 추가했습니다.')),
                 );
               }
               Navigator.of(dialogContext).pop();
             },
-            child: const Text('추가'),
+            child: const AppText('추가'),
           ),
         ],
       ),
@@ -686,7 +705,7 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('내 아이디 QR 코드'),
+        title: const AppText('내 아이디 QR 코드'),
         content: SizedBox(
           width: 300,
           child: Column(
@@ -706,13 +725,13 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
                     Icon(Icons.qr_code_2_rounded,
                         size: 100, color: Colors.indigo),
                     SizedBox(height: 8),
-                    Text('SCAN ME',
+                    AppText('SCAN ME',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
-              Text('ID: $email',
+              AppText('ID: $email',
                   style: const TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
@@ -720,17 +739,24 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('닫기'),
+            child: const AppText('닫기'),
           ),
         ],
       ),
     );
   }
 
-  void _openGallery() {
+  Future<void> _openGallery() async {
+    if (!await requireFeatureAccess(context, PermissionFeatures.chatGallery)) {
+      return;
+    }
+    if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => const ChatGalleryScreen(),
+        builder: (_) => const PermissionGate(
+          feature: PermissionFeatures.chatGallery,
+          child: ChatGalleryScreen(),
+        ),
       ),
     );
   }
@@ -745,19 +771,25 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('채팅'),
+        title: const AppText('채팅'),
         actions: [
           IconButton(
             onPressed: _createChat,
-            tooltip: '새 채팅',
+            tooltip: AppText.localize(context, '새 채팅'),
             icon: const Icon(Icons.add_comment_rounded),
           ),
         ],
         bottom: TabBar(
           controller: _tabs,
-          tabs: const [
-            Tab(icon: Icon(Icons.people_alt_outlined), text: '친구목록'),
-            Tab(icon: Icon(Icons.forum_outlined), text: '채팅방'),
+          tabs: [
+            Tab(
+              icon: const Icon(Icons.people_alt_outlined),
+              text: AppText.localize(context, '친구목록'),
+            ),
+            Tab(
+              icon: const Icon(Icons.forum_outlined),
+              text: AppText.localize(context, '채팅방'),
+            ),
           ],
         ),
       ),
@@ -860,7 +892,7 @@ class _ChatWorkspaceScreenState extends State<ChatWorkspaceScreen>
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('채팅방을 확인하지 못했습니다: $error')),
+          SnackBar(content: AppText('채팅방을 확인하지 못했습니다: $error')),
         );
       }
     } finally {
@@ -942,22 +974,23 @@ class _FriendsTab extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onAddFriend,
                 icon: const Icon(Icons.person_add_rounded, size: 18),
-                label: const Text('친구 추가', style: TextStyle(fontSize: 12)),
+                label: const AppText('친구 추가', style: TextStyle(fontSize: 12)),
               ),
               OutlinedButton.icon(
                 onPressed: onAddAiProfile,
                 icon: const Icon(Icons.smart_toy_rounded, size: 18),
-                label: const Text('AI 친구 추가', style: TextStyle(fontSize: 12)),
+                label:
+                    const AppText('AI 친구 추가', style: TextStyle(fontSize: 12)),
               ),
               OutlinedButton.icon(
                 onPressed: onOpenGallery,
                 icon: const Icon(Icons.photo_library_outlined, size: 18),
-                label: const Text('갤러리', style: TextStyle(fontSize: 12)),
+                label: const AppText('갤러리', style: TextStyle(fontSize: 12)),
               ),
               OutlinedButton.icon(
                 onPressed: onShowMyQr,
                 icon: const Icon(Icons.qr_code_rounded, size: 18),
-                label: const Text('내 QR 생성', style: TextStyle(fontSize: 12)),
+                label: const AppText('내 QR 생성', style: TextStyle(fontSize: 12)),
               ),
             ];
             return Wrap(
@@ -971,7 +1004,7 @@ class _FriendsTab extends StatelessWidget {
           },
         ),
         const SizedBox(height: 16),
-        const Text(
+        const AppText(
           '친구 및 AI 캐릭터 목록',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
@@ -985,7 +1018,7 @@ class _FriendsTab extends StatelessWidget {
                     ? Icons.people_alt_outlined
                     : Icons.visibility_off_outlined,
               ),
-              label: Text(
+              label: AppText(
                 showHiddenFriends ? '친구 목록 보기' : '숨김 친구 보기 ($hiddenCount)',
               ),
             ),
@@ -995,7 +1028,7 @@ class _FriendsTab extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 28),
             child: Center(
-              child: Text(
+              child: AppText(
                 showHiddenFriends ? '숨긴 친구가 없습니다.' : '친구가 없습니다.',
               ),
             ),
@@ -1014,7 +1047,8 @@ class _FriendsTab extends StatelessWidget {
                   if (friend.isAi) ...[
                     const SizedBox(width: 6),
                     Chip(
-                      label: const Text('AI', style: TextStyle(fontSize: 10)),
+                      label:
+                          const AppText('AI', style: TextStyle(fontSize: 10)),
                       padding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
                     ),
@@ -1033,16 +1067,16 @@ class _FriendsTab extends StatelessWidget {
                       color: friend.isFavorite ? Colors.amber : Colors.grey,
                     ),
                     onPressed: () => onToggleFavorite(friend),
-                    tooltip: '즐겨찾기',
+                    tooltip: AppText.localize(context, '즐겨찾기'),
                   ),
                   if (!friend.isHidden)
                     IconButton(
                       icon: const Icon(Icons.chat_bubble_outline_rounded),
                       onPressed: () => onStartChatWithFriend(friend),
-                      tooltip: '채팅 시작',
+                      tooltip: AppText.localize(context, '채팅 시작'),
                     ),
                   PopupMenuButton<String>(
-                    tooltip: '친구 관리',
+                    tooltip: AppText.localize(context, '친구 관리'),
                     onSelected: (action) async {
                       if (action == 'hide' || action == 'unhide') {
                         try {
@@ -1051,7 +1085,8 @@ class _FriendsTab extends StatelessWidget {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('친구 숨김 상태를 변경하지 못했습니다: $error'),
+                                content:
+                                    AppText('친구 숨김 상태를 변경하지 못했습니다: $error'),
                               ),
                             );
                           }
@@ -1060,8 +1095,8 @@ class _FriendsTab extends StatelessWidget {
                         final confirmed = await showDialog<bool>(
                           context: context,
                           builder: (dialogContext) => AlertDialog(
-                            title: const Text('친구와 대화 삭제'),
-                            content: Text(
+                            title: const AppText('친구와 대화 삭제'),
+                            content: AppText(
                               '${friend.name} 친구를 삭제하고 연결된 1:1 채팅방과 대화 내용을 모두 삭제할까요? '
                               '그룹 채팅방은 삭제되지 않습니다.',
                             ),
@@ -1069,12 +1104,12 @@ class _FriendsTab extends StatelessWidget {
                               TextButton(
                                 onPressed: () =>
                                     Navigator.of(dialogContext).pop(false),
-                                child: const Text('취소'),
+                                child: const AppText('취소'),
                               ),
                               FilledButton(
                                 onPressed: () =>
                                     Navigator.of(dialogContext).pop(true),
-                                child: const Text('삭제'),
+                                child: const AppText('삭제'),
                               ),
                             ],
                           ),
@@ -1086,7 +1121,7 @@ class _FriendsTab extends StatelessWidget {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('친구를 삭제하지 못했습니다: $error'),
+                                content: AppText('친구를 삭제하지 못했습니다: $error'),
                               ),
                             );
                           }
@@ -1096,11 +1131,13 @@ class _FriendsTab extends StatelessWidget {
                     itemBuilder: (_) => [
                       PopupMenuItem(
                         value: friend.isHidden ? 'unhide' : 'hide',
-                        child: Text(friend.isHidden ? '숨김 해제' : '친구 숨김'),
+                        child: AppText(
+                          friend.isHidden ? '숨김 해제' : '친구 숨김',
+                        ),
                       ),
                       const PopupMenuItem(
                         value: 'delete',
-                        child: Text('친구 및 1:1 대화 삭제'),
+                        child: AppText('친구 및 1:1 대화 삭제'),
                       ),
                     ],
                   ),
@@ -1138,15 +1175,15 @@ class _RoomsTab extends StatelessWidget {
             children: [
               const Icon(Icons.forum_outlined, size: 58, color: Colors.indigo),
               const SizedBox(height: 12),
-              const Text('아직 채팅방이 없습니다.',
+              const AppText('아직 채팅방이 없습니다.',
                   style: TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 6),
-              const Text('AI 설정을 완료하고 첫 대화를 시작해 보세요.'),
+              const AppText('AI 설정을 완료하고 첫 대화를 시작해 보세요.'),
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: onCreate,
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('AI 설정하고 시작하기'),
+                label: const AppText('AI 설정하고 시작하기'),
               ),
             ],
           ),
@@ -1178,24 +1215,24 @@ class _RoomsTab extends StatelessWidget {
               ),
             ),
             trailing: PopupMenuButton<String>(
-              tooltip: '채팅방 관리',
+              tooltip: AppText.localize(context, '채팅방 관리'),
               onSelected: (action) async {
                 if (action != 'delete') return;
                 final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (dialogContext) => AlertDialog(
-                    title: const Text('채팅방 삭제'),
-                    content: Text(
+                    title: const AppText('채팅방 삭제'),
+                    content: AppText(
                       '"${room.title}" 채팅방과 저장된 대화 내용을 모두 삭제할까요?',
                     ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(dialogContext).pop(false),
-                        child: const Text('취소'),
+                        child: const AppText('취소'),
                       ),
                       FilledButton(
                         onPressed: () => Navigator.of(dialogContext).pop(true),
-                        child: const Text('삭제'),
+                        child: const AppText('삭제'),
                       ),
                     ],
                   ),
@@ -1206,7 +1243,7 @@ class _RoomsTab extends StatelessWidget {
                 } catch (error) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('채팅방을 삭제하지 못했습니다: $error')),
+                      SnackBar(content: AppText('채팅방을 삭제하지 못했습니다: $error')),
                     );
                   }
                 }
@@ -1214,7 +1251,7 @@ class _RoomsTab extends StatelessWidget {
               itemBuilder: (_) => const [
                 PopupMenuItem(
                   value: 'delete',
-                  child: Text('채팅방 삭제'),
+                  child: AppText('채팅방 삭제'),
                 ),
               ],
             ),

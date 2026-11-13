@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class HtmlPreviewPage extends StatefulWidget {
@@ -44,7 +45,7 @@ class _HtmlPreviewPageState extends State<HtmlPreviewPage> {
               children: [
                 const Padding(
                   padding: EdgeInsets.all(12),
-                  child: Text('이 플랫폼에서는 HTML을 원본 텍스트로 표시합니다.'),
+                  child: AppText('이 플랫폼에서는 HTML을 원본 텍스트로 표시합니다.'),
                 ),
                 Expanded(
                   child: SingleChildScrollView(
@@ -61,7 +62,7 @@ class _HtmlPreviewPageState extends State<HtmlPreviewPage> {
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
-                      child: Text('HTML 파일을 표시하지 못했습니다: ${snapshot.error}'),
+                      child: AppText('HTML 파일을 표시하지 못했습니다: ${snapshot.error}'),
                     ),
                   );
                 }

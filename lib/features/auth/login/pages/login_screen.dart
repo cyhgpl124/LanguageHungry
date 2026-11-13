@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:langgry/features/auth/session/services/auth_repository.dart';
@@ -51,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
             widget.onLoginSuccess(state.user);
           } else if (state is LoginFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
+              SnackBar(content: AppText(state.message)),
             );
           }
         },
@@ -66,20 +67,20 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _email,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: '이메일',
+                  decoration: InputDecoration(
+                    labelText: AppText.localize(context, '이메일'),
                     prefixIcon: Icon(Icons.mail_outline_rounded),
                   ),
                   validator: (value) => value != null && value.contains('@')
                       ? null
-                      : '이메일을 입력해 주세요.',
+                      : AppText.localize(context, '이메일을 입력해 주세요.'),
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: _password,
                   obscureText: _obscure,
                   decoration: InputDecoration(
-                    labelText: '비밀번호',
+                    labelText: AppText.localize(context, '비밀번호'),
                     prefixIcon: const Icon(Icons.lock_outline_rounded),
                     suffixIcon: IconButton(
                       onPressed: () => setState(() => _obscure = !_obscure),
@@ -90,13 +91,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   validator: (value) => value != null && value.length >= 6
                       ? null
-                      : '비밀번호를 입력해 주세요.',
+                      : AppText.localize(context, '비밀번호를 입력해 주세요.'),
                 ),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: widget.onFindAccount,
-                    child: const Text('아이디·비밀번호 찾기'),
+                    child: const AppText('아이디·비밀번호 찾기'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -122,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 22,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('로그인'),
+                        : const AppText('로그인'),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -132,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         .read<LoginBloc>()
                         .add(const GoogleLoginSubmitted()),
                     icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
-                    label: const Text('Google로 계속하기'),
+                    label: const AppText('Google로 계속하기'),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(54),
                       shape: RoundedRectangleBorder(
@@ -145,10 +146,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('처음 오셨나요?'),
+                    const AppText('처음 오셨나요?'),
                     TextButton(
                       onPressed: widget.onSignUp,
-                      child: const Text('회원가입'),
+                      child: const AppText('회원가입'),
                     ),
                   ],
                 ),

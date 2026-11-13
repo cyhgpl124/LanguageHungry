@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -67,7 +68,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
   Future<void> _submit() async {
     if (!_agree) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('필수 약관에 동의해 주세요.')),
+        const SnackBar(content: AppText('필수 약관에 동의해 주세요.')),
       );
       return;
     }
@@ -85,7 +86,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('가입 정보를 저장하지 못했습니다: $error')),
+          SnackBar(content: AppText('가입 정보를 저장하지 못했습니다: $error')),
         );
       }
     } finally {
@@ -95,8 +96,8 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
 
   InputDecoration _decoration(String label, {String? hint, Widget? suffix}) {
     return InputDecoration(
-      labelText: label,
-      hintText: hint,
+      labelText: AppText.localize(context, label),
+      hintText: hint == null ? null : AppText.localize(context, hint),
       suffixIcon: suffix,
     );
   }
@@ -114,7 +115,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
             Center(
               child: Semantics(
                 button: true,
-                label: '프로필 사진 선택',
+                label: AppText.localize(context, '프로필 사진 선택'),
                 child: InkWell(
                   onTap: _saving ? null : _pickProfileImage,
                   customBorder: const CircleBorder(),
@@ -163,7 +164,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
             ),
             const SizedBox(height: 8),
             const Center(
-              child: Text(
+              child: AppText(
                 '프로필 사진을 눌러 업로드하세요',
                 style: TextStyle(color: Colors.black54),
               ),
@@ -182,9 +183,17 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                       ),
                       validator: (value) {
                         final text = value?.trim() ?? '';
-                        if (text.length < 3) return '아이디는 3자 이상 입력해 주세요.';
+                        if (text.length < 3) {
+                          return AppText.localize(
+                            context,
+                            '아이디는 3자 이상 입력해 주세요.',
+                          );
+                        }
                         if (!RegExp(r'^[A-Za-z0-9_]+$').hasMatch(text)) {
-                          return '영문, 숫자, 밑줄(_)만 사용해 주세요.';
+                          return AppText.localize(
+                            context,
+                            '영문, 숫자, 밑줄(_)만 사용해 주세요.',
+                          );
                         }
                         return null;
                       },
@@ -195,7 +204,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                       decoration: _decoration('닉네임'),
                       validator: (value) =>
                           value == null || value.trim().isEmpty
-                              ? '닉네임을 입력해 주세요.'
+                              ? AppText.localize(context, '닉네임을 입력해 주세요.')
                               : null,
                     ),
                     const SizedBox(height: 12),
@@ -249,7 +258,10 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                         }
                         return value == _password.text
                             ? null
-                            : '비밀번호가 일치하지 않습니다.';
+                            : AppText.localize(
+                                context,
+                                '비밀번호가 일치하지 않습니다.',
+                              );
                       },
                     ),
                     const SizedBox(height: 12),
@@ -274,10 +286,10 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
               controlAffinity: ListTileControlAffinity.leading,
               title: Wrap(
                 children: [
-                  const Text('필수 약관에 동의합니다. '),
+                  const AppText('필수 약관에 동의합니다. '),
                   GestureDetector(
                     onTap: _saving ? null : widget.onTerms,
-                    child: const Text(
+                    child: const AppText(
                       '약관 보기',
                       style: TextStyle(decoration: TextDecoration.underline),
                     ),
@@ -294,7 +306,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                       width: 22,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('가입하기'),
+                  : const AppText('가입하기'),
             ),
           ],
         ),

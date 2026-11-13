@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../session/services/auth_repository.dart';
@@ -29,7 +30,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
       if (user.needsEmailVerification) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('이메일 인증을 완료한 뒤 다시 확인해 주세요.')),
+          const SnackBar(content: AppText('이메일 인증을 완료한 뒤 다시 확인해 주세요.')),
         );
       } else {
         if (!mounted) return;
@@ -52,7 +53,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
       await context.read<AuthRepository>().resendEmailVerification();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('인증 메일을 다시 보냈습니다.')),
+          const SnackBar(content: AppText('인증 메일을 다시 보냈습니다.')),
         );
       }
     } catch (error) {
@@ -80,7 +81,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
             size: 80,
           ),
           const SizedBox(height: 20),
-          const Text(
+          const AppText(
             '메일함에서 인증 링크를 클릭한 뒤 아래 버튼을 눌러 주세요.',
             textAlign: TextAlign.center,
           ),
@@ -89,12 +90,13 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
             onPressed: _loading ? null : _checkVerification,
             child: _loading
                 ? const CircularProgressIndicator()
-                : const Text('인증 완료 확인'),
+                : const AppText('인증 완료 확인'),
           ),
           TextButton(
             onPressed: _resending ? null : _resend,
-            child:
-                _resending ? const Text('전송 중...') : const Text('인증 메일 다시 보내기'),
+            child: _resending
+                ? const AppText('전송 중...')
+                : const AppText('인증 메일 다시 보내기'),
           ),
         ],
       ),

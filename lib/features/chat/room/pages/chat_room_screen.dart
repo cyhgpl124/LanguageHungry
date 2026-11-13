@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -12,6 +13,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/rendering.dart';
 import 'package:langgry/core/firebase/firestore_database.dart';
+import 'package:langgry/core/permissions/permission_gate.dart';
+import 'package:langgry/core/permissions/permission_policy.dart';
 import 'package:langgry/core/theme/app_theme.dart';
 import 'package:langgry/features/chat/models/chat_room.dart';
 import 'package:langgry/features/chat/models/chat_settings.dart';
@@ -64,6 +67,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Uint8List? _referenceImageBytes;
   String? _referenceImageName;
   String? _referenceImageMimeType;
+  final _attachedMemos = <KnowledgeNode>[];
 
   // Offline Meeting Mode State
   bool _isMeetingRecording = false;
@@ -99,15 +103,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                Text('저장된 대화 위치를 확인하지 못했습니다: ${error.message ?? error.code}'),
+            content: AppText(
+                '저장된 대화 위치를 확인하지 못했습니다: ${error.message ?? error.code}'),
           ),
         );
       }
     } on StateError catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('저장된 대화 위치를 확인하지 못했습니다: ${error.message}')),
+          SnackBar(content: AppText('저장된 대화 위치를 확인하지 못했습니다: ${error.message}')),
         );
       }
     }
@@ -161,7 +165,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       onError: (Object error) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('채팅 내용을 불러오지 못했습니다: $error')),
+            SnackBar(content: AppText('채팅 내용을 불러오지 못했습니다: $error')),
           );
         }
       },
@@ -212,7 +216,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           children: [
             Icon(Icons.done_rounded, size: 12, color: Colors.green),
             SizedBox(width: 2),
-            Text(
+            AppText(
               '저장됨',
               style: TextStyle(fontSize: 10, color: Colors.black54),
             ),
@@ -285,7 +289,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('이전 채팅 내용을 불러오지 못했습니다: $error')),
+          SnackBar(content: AppText('이전 채팅 내용을 불러오지 못했습니다: $error')),
         );
       }
     } finally {
@@ -385,9 +389,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   static String _formatDecibel(double db) => db.toStringAsFixed(1);
 
   Future<void> _analyzeOfflineMeeting() async {
+    if (!await requireFeatureAccess(context, PermissionFeatures.aiTools)) {
+      return;
+    }
+    if (!mounted) return;
     if (_messages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('분석할 회의 녹음 내역이 없습니다.')),
+        const SnackBar(content: AppText('분석할 회의 녹음 내역이 없습니다.')),
       );
       return;
     }
@@ -428,6 +436,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   Future<void> _stepAiSpectatorChat() async {
+    if (!await requireFeatureAccess(context, PermissionFeatures.aiTools)) {
+      return;
+    }
+    if (!mounted) return;
     if (_sending) return;
     setState(() => _sending = true);
     final topic = widget.room.settings.role.isNotEmpty
@@ -459,6 +471,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   Future<void> _editAiSettings() async {
+    if (!await requireFeatureAccess(context, PermissionFeatures.chatSetup)) {
+      return;
+    }
+    if (!mounted) return;
     final result = await Navigator.of(context).push<ChatSettings>(
       MaterialPageRoute(
         builder: (_) => ChatSetupScreen(
@@ -477,6 +493,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   Future<void> _editRoomSettings() async {
+    if (!await requireFeatureAccess(context, PermissionFeatures.chatSetup)) {
+      return;
+    }
+    if (!mounted) return;
     final result = await Navigator.of(context).push<ChatRoomSettingsResult>(
       MaterialPageRoute(
         builder: (_) => ChatRoomSettingsScreen(
@@ -499,7 +519,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   void _send() {
     final text = _message.text.trim();
-    if (text.isEmpty && _referenceImageBytes == null) return;
+    if (text.isEmpty && _referenceImageBytes == null && _attachedMemos.isEmpty) {
+      return;
+    }
     _sendMessage(text);
   }
 
@@ -507,7 +529,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final text = _message.text.trim();
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('생성할 이미지 내용을 먼저 입력해 주세요.')),
+        const SnackBar(content: AppText('생성할 이미지 내용을 먼저 입력해 주세요.')),
       );
       return;
     }
@@ -523,12 +545,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.folder_open_rounded),
-              title: const Text('기기에서 사진 선택'),
+              title: const AppText('기기에서 사진 선택'),
               onTap: () => Navigator.pop(context, 'device'),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('채팅 갤러리에서 선택'),
+              title: const AppText('채팅 갤러리에서 선택'),
               onTap: () => Navigator.pop(context, 'gallery'),
             ),
           ],
@@ -554,7 +576,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     if (bytes.length > 10 * 1024 * 1024) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('이미지는 10MB 이하만 업로드할 수 있습니다.')),
+          const SnackBar(content: AppText('이미지는 10MB 이하만 업로드할 수 있습니다.')),
         );
       }
       return;
@@ -574,12 +596,19 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   Future<void> _pickReferenceImageFromGallery() async {
+    if (!await requireFeatureAccess(context, PermissionFeatures.chatGallery)) {
+      return;
+    }
+    if (!mounted) return;
     final selection = await Navigator.of(context).push<ChatGallerySelection>(
       MaterialPageRoute(
-        builder: (_) => ChatGalleryScreen(
-          roomId: widget.room.id,
-          roomTitle: widget.room.title,
-          selectionMode: true,
+        builder: (_) => PermissionGate(
+          feature: PermissionFeatures.chatGallery,
+          child: ChatGalleryScreen(
+            roomId: widget.room.id,
+            roomTitle: widget.room.title,
+            selectionMode: true,
+          ),
         ),
       ),
     );
@@ -601,7 +630,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('갤러리 사진을 불러오지 못했습니다: $error')),
+          SnackBar(content: AppText('갤러리 사진을 불러오지 못했습니다: $error')),
         );
       }
     }
@@ -672,73 +701,111 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     return (bytes, metadata.contentType ?? 'image/jpeg');
   }
 
+  Future<void> _pickReferenceMemo() async {
+    final nodes = await widget.store.listNodes();
+    final memoNodes = nodes.where((n) => n.type == 'memo').toList();
+    if (!mounted) return;
+    if (memoNodes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: AppText('첨부할 메모가 없습니다. 먼저 메모를 작성해 주세요.')),
+      );
+      return;
+    }
+
+    final selected = await showDialog<KnowledgeNode>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const AppText('첨부할 메모 선택'),
+        content: SizedBox(
+          width: 400,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: memoNodes.length,
+            itemBuilder: (_, index) {
+              final memo = memoNodes[index];
+              final isAlreadyAttached =
+                  _attachedMemos.any((m) => m.id == memo.id);
+              return ListTile(
+                leading: const Icon(Icons.sticky_note_2_outlined),
+                title: AppText(memo.title),
+                subtitle: AppText(
+                  memo.content,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: isAlreadyAttached
+                    ? const Icon(Icons.check_circle_rounded, color: Colors.green)
+                    : null,
+                onTap: () => Navigator.of(dialogContext).pop(memo),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const AppText('취소'),
+          ),
+        ],
+      ),
+    );
+
+    if (selected != null && mounted) {
+      setState(() {
+        if (!_attachedMemos.any((m) => m.id == selected.id)) {
+          _attachedMemos.add(selected);
+        }
+      });
+    }
+  }
+
   Future<String> _loadReferenceContext(String userMessage) async {
     const maxContextLength = 24000;
     const maxSourceLength = 6000;
-    final sources = <({String title, String? content})>[];
+    final sources = <({String title, String? content, List<String>? tags})>[];
+
+    for (final memo in _attachedMemos) {
+      sources.add((
+        title: '첨부 메모: ${memo.title}',
+        content: memo.content,
+        tags: memo.tags,
+      ));
+    }
+
     for (final memo in widget.room.settings.referenceMemos) {
       final id = memo['id'];
       if (id == null) continue;
+      if (_attachedMemos.any((m) => m.id == id)) continue;
       final node = await widget.store.findNode(id);
       sources.add((
-        title: '메모: ${node?.title ?? memo['title'] ?? id}',
+        title: '참고 메모: ${node?.title ?? memo['title'] ?? id}',
         content: node?.content,
+        tags: node?.tags,
       ));
     }
 
     for (final file in widget.room.settings.referenceFiles) {
       final name = file['name'] ?? '참고 파일';
       final content = file['content'];
-      sources.add((title: '파일: $name', content: content));
+      sources.add((title: '참고 파일: $name', content: content, tags: null));
     }
 
     if (sources.isEmpty) return '';
-    final model =
-        FirebaseAI.googleAI().generativeModel(model: 'gemini-3.6-flash');
-    String sourcePreview(String? content) {
-      if (content == null) return '';
-      return content.substring(0, math.min(500, content.length));
-    }
-
-    final sourceTitles = [
-      for (var index = 0; index < sources.length; index++)
-        '${index + 1}. ${sources[index].title}: '
-            '${sourcePreview(sources[index].content)}',
-    ].join('\n');
-    final selection = await model.generateContent([
-      Content.text(
-        '사용자 메시지에 답할 때 참고자료의 실제 내용이 필요할 때만 '
-        '필요한 자료 번호를 쉼표로 답하세요. 필요 없으면 NONE만 답하세요. '
-        '자료 본문은 아직 읽지 못한 상태이므로 제목만 보고 판단하세요.\n'
-        '사용자 메시지: $userMessage\n'
-        '참고자료 제목:\n$sourceTitles',
-      ),
-    ]);
-    final selectedIndexes = RegExp(r'\d+')
-        .allMatches(selection.text ?? '')
-        .map((match) => int.parse(match.group(0)!))
-        .where((number) => number > 0 && number <= sources.length)
-        .toSet();
-    if (selectedIndexes.isEmpty) return '';
 
     var remainingLength = maxContextLength;
     final sections = <String>[];
-    for (var index = 0; index < sources.length; index++) {
-      if (!selectedIndexes.contains(index + 1) || remainingLength <= 0) {
-        continue;
-      }
-      final source = sources[index];
-      final content = source.content;
-      if (content == null || content.isEmpty) {
-        throw StateError(
-          '참고자료 "${source.title}"의 내용을 찾을 수 없습니다. 채팅방 설정에서 다시 등록해 주세요.',
-        );
-      }
+    for (final source in sources) {
+      if (remainingLength <= 0) break;
+      final content = source.content ?? '';
+      if (content.isEmpty) continue;
       final availableLength = math.min(remainingLength, maxSourceLength);
       final excerpt = content.length > availableLength
           ? '${content.substring(0, availableLength)}\n[내용 일부 생략]'
           : content;
-      sections.add('[${source.title}]\n$excerpt');
+      final tagsText = (source.tags != null && source.tags!.isNotEmpty)
+          ? '\n태그: ${source.tags!.map((t) => '#$t').join(' ')}'
+          : '';
+      sections.add('[${source.title}]\n$excerpt$tagsText');
       remainingLength -= excerpt.length;
     }
     return sections.join('\n\n');
@@ -985,11 +1052,18 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   Future<void> _openGallery() async {
+    if (!await requireFeatureAccess(context, PermissionFeatures.chatGallery)) {
+      return;
+    }
+    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => ChatGalleryScreen(
-          roomId: widget.room.id,
-          roomTitle: widget.room.title,
+        builder: (_) => PermissionGate(
+          feature: PermissionFeatures.chatGallery,
+          child: ChatGalleryScreen(
+            roomId: widget.room.id,
+            roomTitle: widget.room.title,
+          ),
         ),
       ),
     );
@@ -1002,6 +1076,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     if (_sending) return;
     final generateImage = text.isNotEmpty &&
         (forceImageGeneration || _isImageGenerationRequest(text));
+    final usesAi = generateImage ||
+        (text.isNotEmpty &&
+            (widget.room.isAi || widget.room.settings.chatType == 'group_ai'));
+    if (usesAi &&
+        !await requireFeatureAccess(context, PermissionFeatures.aiTools)) {
+      return;
+    }
+    if (!mounted) return;
     final referenceBytes = _referenceImageBytes;
     final referenceName = _referenceImageName;
     final referenceMimeType = _referenceImageMimeType;
@@ -1101,7 +1183,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     if (user == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('로그인 후 채팅 내용을 저장할 수 있습니다.')),
+          const SnackBar(content: AppText('로그인 후 채팅 내용을 저장할 수 있습니다.')),
         );
       }
       return;
@@ -1134,7 +1216,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('채팅 내용을 저장하지 못했습니다: $error')),
+          SnackBar(content: AppText('채팅 내용을 저장하지 못했습니다: $error')),
         );
       }
     }
@@ -1160,6 +1242,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }) async {
     if (_savingChatFile) return;
     if (!manual && widget.room.settings.saveEvery <= 0) return;
+    if (!await requireFeatureAccess(context, PermissionFeatures.aiTools)) {
+      return;
+    }
+    if (!mounted) return;
     setState(() => _savingChatFile = true);
     try {
       await _persist();
@@ -1229,7 +1315,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       if (segment.isEmpty) {
         if (manual && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('저장할 새 대화 내용이 없습니다.')),
+            const SnackBar(content: AppText('저장할 새 대화 내용이 없습니다.')),
           );
         }
         return;
@@ -1314,7 +1400,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
+            content: AppText(
               '${fullContent ? '전체 대화' : '새 대화'} HTML 저장 완료: $title',
             ),
           ),
@@ -1325,13 +1411,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content:
-                  Text('대화 파일을 저장하지 못했습니다: ${error.message ?? error.code}')),
+                  AppText('대화 파일을 저장하지 못했습니다: ${error.message ?? error.code}')),
         );
       }
     } on StateError catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('대화 파일을 저장하지 못했습니다: ${error.message}')),
+          SnackBar(content: AppText('대화 파일을 저장하지 못했습니다: ${error.message}')),
         );
       }
     } finally {
@@ -1356,7 +1442,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             onPressed: _savingChatFile || _sending
                 ? null
                 : () => _saveChatSegment(manual: true),
-            tooltip: '새 대화 내용 저장',
+            tooltip: AppText.localize(context, '새 대화 내용 저장'),
             icon: _savingChatFile
                 ? const SizedBox(
                     width: 20,
@@ -1369,22 +1455,22 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             onPressed: _savingChatFile || _sending
                 ? null
                 : () => _saveChatSegment(manual: true, fullContent: true),
-            tooltip: '전체 내용 저장',
+            tooltip: AppText.localize(context, '전체 내용 저장'),
             icon: const Icon(Icons.save_as_outlined),
           ),
           IconButton(
             onPressed: _openGallery,
-            tooltip: '채팅방 갤러리',
+            tooltip: AppText.localize(context, '채팅방 갤러리'),
             icon: const Icon(Icons.photo_library_outlined),
           ),
           IconButton(
             onPressed: _editAiSettings,
-            tooltip: 'AI 설정',
+            tooltip: AppText.localize(context, 'AI 설정'),
             icon: const Icon(Icons.tune_rounded),
           ),
           IconButton(
             onPressed: _editRoomSettings,
-            tooltip: '채팅방 설정',
+            tooltip: AppText.localize(context, '채팅방 설정'),
             icon: const Icon(Icons.settings_rounded),
           ),
         ],
@@ -1408,7 +1494,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
+                        child: AppText(
                           _isMeetingRecording
                               ? '실시간 회의 녹음 감지 중 (기준: ${widget.room.settings.decibelThreshold.round()}dB)'
                               : '오프라인 회의 모드 (녹음 대기 중)',
@@ -1425,7 +1511,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                         icon: Icon(_isMeetingRecording
                             ? Icons.stop_rounded
                             : Icons.fiber_manual_record_rounded),
-                        label: Text(_isMeetingRecording ? '녹음 중지' : '녹음 시작'),
+                        label: AppText(
+                          _isMeetingRecording ? '녹음 중지' : '녹음 시작',
+                        ),
                       ),
                     ],
                   ),
@@ -1439,7 +1527,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                           : Colors.green,
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    AppText(
                       '현재 음성 감지 데시벨: ${_formatDecibel(_currentDecibel)} dB',
                       style: const TextStyle(fontSize: 12),
                     ),
@@ -1450,7 +1538,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _analyzeOfflineMeeting,
                       icon: const Icon(Icons.analytics_rounded, size: 16),
-                      label: const Text('AI 회의 분석 실행'),
+                      label: const AppText('AI 회의 분석 실행'),
                     ),
                   ),
                 ],
@@ -1467,7 +1555,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   const Icon(Icons.remove_red_eye_rounded, color: Colors.amber),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
+                    child: AppText(
                       'AI 대화 관전 모드: ${widget.room.settings.name} ↔ 보조 AI',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
@@ -1475,7 +1563,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   FilledButton.icon(
                     onPressed: _stepAiSpectatorChat,
                     icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('다음 대화 관전'),
+                    label: const AppText('다음 대화 관전'),
                   ),
                 ],
               ),
@@ -1547,6 +1635,28 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (_attachedMemos.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          for (final memo in _attachedMemos)
+                            Chip(
+                              avatar: const Icon(Icons.sticky_note_2_outlined,
+                                  size: 16),
+                              label: AppText(memo.title),
+                              onDeleted: () {
+                                setState(() {
+                                  _attachedMemos
+                                      .removeWhere((m) => m.id == memo.id);
+                                });
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
                   if (_referenceImageBytes != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
@@ -1564,7 +1674,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              _referenceImageName ?? '참고 이미지',
+                              _referenceImageName ??
+                                  AppText.localize(context, '참고 이미지'),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -1575,7 +1686,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                               _referenceImageName = null;
                               _referenceImageMimeType = null;
                             }),
-                            tooltip: '참고 이미지 제거',
+                            tooltip: AppText.localize(context, '참고 이미지 제거'),
                             icon: const Icon(Icons.close_rounded),
                           ),
                         ],
@@ -1585,13 +1696,20 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       SizedBox(
-                        width: 96,
+                        width: 144,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
+                              onPressed: _sending ? null : _pickReferenceMemo,
+                              tooltip: AppText.localize(context, '메모 첨부'),
+                              icon: const Icon(
+                                Icons.note_add_outlined,
+                              ),
+                            ),
+                            IconButton(
                               onPressed: _sending ? null : _pickReferenceImage,
-                              tooltip: '참고 이미지 업로드',
+                              tooltip: AppText.localize(context, '참고 이미지 업로드'),
                               icon: const Icon(
                                 Icons.add_photo_alternate_outlined,
                               ),
@@ -1599,7 +1717,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                             IconButton(
                               onPressed:
                                   _sending ? null : _generateImageFromComposer,
-                              tooltip: '이미지 생성',
+                              tooltip: AppText.localize(context, '이미지 생성'),
                               icon: const Icon(Icons.auto_awesome_rounded),
                             ),
                           ],
@@ -1618,8 +1736,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                             onSubmitted: (_) => _send(),
                             minLines: 1,
                             maxLines: 5,
-                            decoration: const InputDecoration(
-                              hintText: '메시지 또는 이미지 생성 요청',
+                            decoration: InputDecoration(
+                              hintText:
+                                  AppText.localize(context, '메시지 또는 이미지 생성 요청'),
                               border: InputBorder.none,
                               contentPadding: EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -1636,7 +1755,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                           foregroundColor: Colors.white,
                           fixedSize: const Size(46, 46),
                         ),
-                        tooltip: '메시지 전송',
+                        tooltip: AppText.localize(context, '메시지 전송'),
                         icon: _sending
                             ? const SizedBox(
                                 width: 20,
@@ -1721,7 +1840,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   if (prompt.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.all(10),
-                      child: Text(
+                      child: AppText(
                         '${imageData['kind'] == 'generated' ? '생성' : '업로드'} · $prompt',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,

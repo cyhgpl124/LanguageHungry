@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:langgry/core/localization/app_text.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:langgry/features/auth/session/services/auth_repository.dart';
@@ -47,7 +48,7 @@ class _FindAccountScreenState extends State<FindAccountScreen> {
           };
           if (message != null) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(message)),
+              SnackBar(content: AppText(message)),
             );
           }
         },
@@ -58,8 +59,8 @@ class _FindAccountScreenState extends State<FindAccountScreen> {
             children: [
               SegmentedButton<int>(
                 segments: const [
-                  ButtonSegment(value: 0, label: Text('아이디 찾기')),
-                  ButtonSegment(value: 1, label: Text('비밀번호 찾기')),
+                  ButtonSegment(value: 0, label: AppText('아이디 찾기')),
+                  ButtonSegment(value: 1, label: AppText('비밀번호 찾기')),
                 ],
                 selected: {_tab},
                 onSelectionChanged: (value) =>
@@ -69,13 +70,15 @@ class _FindAccountScreenState extends State<FindAccountScreen> {
               if (_tab == 0) ...[
                 TextField(
                   controller: _name,
-                  decoration: const InputDecoration(labelText: '이름'),
+                  decoration: InputDecoration(
+                      labelText: AppText.localize(context, '이름')),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _phone,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: '휴대폰 번호'),
+                  decoration: InputDecoration(
+                      labelText: AppText.localize(context, '휴대폰 번호')),
                 ),
                 const SizedBox(height: 18),
                 BlocBuilder<FindAccountBloc, FindAccountState>(
@@ -92,14 +95,15 @@ class _FindAccountScreenState extends State<FindAccountScreen> {
                             ),
                     child: state is FindAccountLoading
                         ? const CircularProgressIndicator()
-                        : const Text('아이디 확인하기'),
+                        : const AppText('아이디 확인하기'),
                   ),
                 ),
               ] else ...[
                 TextField(
                   controller: _email,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: '가입 이메일'),
+                  decoration: InputDecoration(
+                      labelText: AppText.localize(context, '가입 이메일')),
                 ),
                 const SizedBox(height: 18),
                 BlocBuilder<FindAccountBloc, FindAccountState>(
@@ -110,7 +114,7 @@ class _FindAccountScreenState extends State<FindAccountScreen> {
                             if (!_email.text.contains('@')) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('가입 이메일을 입력해 주세요.'),
+                                  content: AppText('가입 이메일을 입력해 주세요.'),
                                 ),
                               );
                               return;
@@ -123,7 +127,7 @@ class _FindAccountScreenState extends State<FindAccountScreen> {
                           },
                     child: state is FindAccountLoading
                         ? const CircularProgressIndicator()
-                        : const Text('재설정 메일 보내기'),
+                        : const AppText('재설정 메일 보내기'),
                   ),
                 ),
               ],
